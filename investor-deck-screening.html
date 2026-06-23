@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Regenerative Soil Biology — Screening Deck</title>
+<style>
+  :root{
+    --ink:#1d2417; --soil:#3a2e1f; --moss:#4f6b2f; --leaf:#6f9a3a;
+    --gold:#c08a2d; --paper:#f6f3ec; --card:#ffffff; --muted:#5b6450; --line:#d9d2c2;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;background:var(--paper);color:var(--ink);
+    font-family:"Segoe UI",Helvetica,Arial,sans-serif;line-height:1.5;}
+  .deck{max-width:1040px;margin:0 auto;padding:24px;}
+  .slide{
+    background:var(--card);border:1px solid var(--line);border-radius:14px;
+    padding:48px 56px;margin:0 0 22px;min-height:560px;
+    display:flex;flex-direction:column;justify-content:center;
+    box-shadow:0 2px 10px rgba(0,0,0,.05);position:relative;
+  }
+  .num{position:absolute;top:18px;right:24px;font-size:13px;color:var(--muted);
+    letter-spacing:.5px;}
+  .kicker{font-size:13px;letter-spacing:2px;text-transform:uppercase;
+    color:var(--moss);font-weight:700;margin:0 0 10px;}
+  h1{font-size:40px;line-height:1.12;margin:0 0 14px;color:var(--soil);}
+  h2{font-size:30px;line-height:1.15;margin:0 0 18px;color:var(--soil);}
+  .sub{font-size:19px;color:var(--moss);font-weight:600;margin:0 0 18px;}
+  p,li{font-size:18px;}
+  ul{margin:6px 0 0;padding-left:22px;}
+  li{margin:0 0 12px;}
+  strong{color:var(--ink);}
+  .em{color:var(--gold);font-style:italic;}
+  .lede{font-size:21px;color:var(--ink);}
+  .two{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-top:6px;}
+  .box{background:var(--paper);border:1px solid var(--line);border-radius:10px;padding:16px 18px;}
+  .box.proven{border-left:5px solid var(--leaf);}
+  .box.unproven{border-left:5px solid var(--gold);}
+  .box h3{margin:0 0 8px;font-size:15px;text-transform:uppercase;letter-spacing:1px;}
+  .box.proven h3{color:var(--moss);}
+  .box.unproven h3{color:var(--gold);}
+  table{width:100%;border-collapse:collapse;margin-top:8px;font-size:16px;}
+  th,td{text-align:left;padding:10px 12px;border-bottom:1px solid var(--line);vertical-align:top;}
+  th{background:var(--moss);color:#fff;font-size:14px;letter-spacing:.5px;}
+  tr:nth-child(even) td{background:var(--paper);}
+  .ask{font-size:30px;color:var(--moss);font-weight:700;}
+  .quote{font-size:24px;color:var(--soil);font-weight:600;border-left:5px solid var(--leaf);
+    padding-left:18px;margin:14px 0;}
+  .foot{margin-top:18px;color:var(--muted);font-size:15px;}
+  .ph{background:#fff7e6;border-bottom:1px dashed var(--gold);padding:0 2px;}
+  .center{text-align:center;}
+  @media print{
+    body{background:#fff;}
+    .deck{max-width:none;padding:0;margin:0;}
+    .slide{break-after:page;page-break-after:always;border:none;border-radius:0;
+      box-shadow:none;margin:0;min-height:96vh;padding:6vh 8vw;}
+    .slide:last-child{break-after:auto;page-break-after:auto;}
+  }
+  @page{size:landscape;margin:0;}
+</style>
+</head>
+<body>
+<div class="deck">
+
+  <section class="slide center">
+    <span class="num">1 / 10</span>
+    <p class="kicker">[Company] · for [Investment Org]</p>
+    <h1>We don't grow crops.<br>We grow soil biology.</h1>
+    <p class="sub">The crop is the interest paid on living biological capital.</p>
+    <p class="lede">Restoring the microbial engine of degraded Midwestern cropland.</p>
+    <p class="foot"><strong>The ask:</strong> <span class="ph">[$AMOUNT]</span> to characterize the product and run the proof no competitor has.</p>
+  </section>
+
+  <section class="slide">
+    <span class="num">2 / 10</span>
+    <p class="kicker">The Problem</p>
+    <h2>A century of tillage and fertilizer stripped the biology out of the soil.</h2>
+    <ul>
+      <li>Continuous-corn soils are biologically degraded — bacterially-skewed, <strong>fungal-depleted</strong>. (Fungal:bacterial biomass falls forest &gt; grassland &gt; cropland.)</li>
+      <li>Farmers now <strong>rent yield from inputs every year</strong> instead of owning it in the soil.</li>
+      <li>The "biologicals" sold to fix this are mostly <strong>single strains</strong> — and up to <strong>~90% fail to establish.</strong></li>
+    </ul>
+  </section>
+
+  <section class="slide">
+    <span class="num">3 / 10</span>
+    <p class="kicker">The Insight</p>
+    <h2>Soil is a microbiome. The industry treats it like a chemistry set.</h2>
+    <ul>
+      <li>Function lives in a <strong>diverse, coupled community</strong> — fungi break down tough residue, bacteria metabolize the released nutrients and fix nitrogen.</li>
+      <li>Degraded soil isn't missing a kingdom — it's missing the <strong>fungal half of that handoff.</strong></li>
+      <li>The fix isn't a better single strain. It's <strong>restoring the partnership and feeding it</strong> — <span class="em">nurture, not control.</span></li>
+    </ul>
+  </section>
+
+  <section class="slide">
+    <span class="num">4 / 10</span>
+    <p class="kicker">Why this is real, not faith</p>
+    <h2>The biology is settled. The agronomy isn't. That gap is the company.</h2>
+    <div class="two">
+      <div class="box proven">
+        <h3>Proven (HIGH confidence)</h3>
+        <p>Degraded cropland is fungal-depleted · single-strain inoculants fail · cross-kingdom labor split recurs across biomes · fungal residue builds the most stable soil carbon.</p>
+      </div>
+      <div class="box unproven">
+        <h3>Unproven by anyone — incumbents included</h3>
+        <p>That restoring fungi <strong>causally</strong> lifts yield and carbon <strong>independent of the nutrients applied.</strong> Nobody has run the clean trial.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="slide">
+    <span class="num">5 / 10</span>
+    <p class="kicker">The Wedge</p>
+    <h2>All improvement comes from measurement. The industry can't measure soil health.</h2>
+    <ul>
+      <li>A blood panel works because of <strong>validated reference ranges.</strong> Soil microbiome science <strong>has none</strong> — the standard metric (F:B ratio) is method-confounded and a contested predictor.</li>
+      <li>Whoever builds the <strong>function-anchored soil-biology readout</strong> owns the instrument the whole field needs and can't currently buy.</li>
+    </ul>
+  </section>
+
+  <section class="slide">
+    <span class="num">6 / 10</span>
+    <p class="kicker">What we do</p>
+    <h2>Characterize → Prove → Scale. Disciplined and falsifiable.</h2>
+    <ul>
+      <li><strong>Product:</strong> a high-biomass, <strong>functionally-coupled fungal+bacterial inoculum</strong> (Johnson-Su lineage), delivered with prebiotic context so it <em>establishes</em> instead of washing out.</li>
+      <li><strong>Method:</strong> identify beneficial fungi <strong>by comparison, not extraction</strong> — sample degraded soil, a healthy reference soil, and our product; the missing guild is the delta.</li>
+      <li><strong>Every batch fingerprinted</strong> (sequencing + function), not crafted by feel.</li>
+    </ul>
+  </section>
+
+  <section class="slide">
+    <span class="num">7 / 10</span>
+    <p class="kicker">The Moat</p>
+    <h2>Two assets — and the second compounds.</h2>
+    <ul>
+      <li><strong>The inoculant</strong> — a qualified, reproducible regenerative product.</li>
+      <li><strong>The diagnostic</strong> — a validated, function-anchored <strong>"blood panel for soil,"</strong> built as a byproduct of our own trials.</li>
+    </ul>
+    <p class="lede" style="margin-top:14px;">More fields → better reference ranges → better diagnosis → better product. <strong>A data flywheel competitors can't shortcut.</strong></p>
+  </section>
+
+  <section class="slide">
+    <span class="num">8 / 10</span>
+    <p class="kicker">Roadmap</p>
+    <h2>From belief to evidence — with a kill switch.</h2>
+    <table>
+      <tr><th>Phase</th><th>What</th><th>De-risks</th><th>Horizon</th></tr>
+      <tr><td><strong>0. Characterize</strong></td><td>3-soil reference-delta; lock assays; fingerprint product</td><td>"Do we have a repeatable process?"</td><td>Near-term, low cost</td></tr>
+      <tr><td><strong>1. Prove</strong></td><td>Field trial: biology vs. <strong>nutrient-matched control</strong>; fungi-knockdown arm; carbon tracing</td><td>"Is it the biology, or just the compost?"</td><td>3 years</td></tr>
+      <tr><td><strong>2. Scale</strong></td><td>Inoculant + diagnostic subscription; data flywheel</td><td>Commercial repeatability</td><td>Post-proof</td></tr>
+    </table>
+    <p class="foot"><strong>Built-in kill switch:</strong> if the live product doesn't beat nutrient-matched compost, we learn it cheaply — before scaling capital.</p>
+  </section>
+
+  <section class="slide">
+    <span class="num">9 / 10</span>
+    <p class="kicker">The Ask</p>
+    <h2><span class="ask">[$AMOUNT]</span> to fund Phase 0 + launch Phase 1.</h2>
+    <p><strong>Use of funds:</strong> lab/assay + sequencing · 3 field-trial sites (3-yr) · bioreactor build-out + QC · core team (microbiologist, agronomist, data).</p>
+    <p><strong>Milestones that unlock the next round:</strong></p>
+    <ul>
+      <li>Product fingerprint + reproducibility proven</li>
+      <li>Year-1 field establishment + baseline reference ranges</li>
+      <li>First causal yield/carbon readout <strong>decoupled from nutrients</strong></li>
+    </ul>
+    <p class="foot"><span class="ph">[Team: founder + advisory scientists + farmer partners — insert.]</span></p>
+  </section>
+
+  <section class="slide center">
+    <span class="num">10 / 10</span>
+    <p class="kicker">Vision</p>
+    <h2>We're not selling a bottle. We're rebuilding biological capital — and we can measure it.</h2>
+    <p class="quote">Restore the partnership. Feed the herd. Let the soil pay the interest.</p>
+    <p class="lede">[Company] — the measurement-first regenerative platform for degraded cropland.</p>
+    <p class="foot"><span class="ph">Contact: [name / email / site]</span></p>
+  </section>
+
+</div>
+</body>
+</html>
