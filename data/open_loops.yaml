@@ -1,0 +1,57 @@
+# Consolidated open loops the advisor tracks (brief section 5).
+# status: open | closed ; close with `closed_on` (YYYY-MM-DD) and a note.
+loops:
+  - id: reconcile-daily-formulas
+    status: open
+    summary: "Reconcile the three daily formulas (Morning greens, D&G Functional Daily, Brain-Gut) — which is current?"
+    owner: kent
+
+  - id: hgb-hct-recheck
+    status: open
+    summary: "Close the HGB/HCT recheck with Dr. Swenson — was the well-hydrated re-draw done?"
+    medical: true
+    owner: physician
+
+  - id: colonoscopy-findings
+    status: open
+    summary: "Retrieve colonoscopy findings (3/13/2024, Iowa Endoscopy Center) + surveillance interval."
+    medical: true
+    owner: physician
+
+  - id: statin-vs-diet
+    status: open
+    summary: "Decide statin vs. diet/exercise path for lipids (atorvastatin recommended 2021 & 2024, not sustained)."
+    medical: true
+    owner: physician
+
+  - id: measurement-layer
+    status: open
+    summary: "Add measurement layer: fasting insulin + HOMA-IR; 2-wk CGM; check vitamin D."
+    owner: kent
+
+  - id: br549-verify
+    status: open
+    summary: "Clean up / verify raw BR-549 notes (esp. BPC-157 / TB-500 peptides — research-stage, unverified)."
+    owner: kent
+
+  - id: sauna-eval
+    status: open
+    summary: "Evaluate sauna (infrared vs. traditional, cost, CV rationale, fit). Rocky Mountain Sauna 2026-06-03."
+    owner: kent
+
+  - id: mb-framing
+    status: open
+    summary: "Resolve methylene blue 'situational only' (sec 1) vs. 'once-daily' (sec 3) framing — decide which is current."
+    medical: true
+    owner: physician
+
+  - id: stale-references-id
+    status: open
+    summary: "Fix stale Health_References.md id in the MASTER source index (old 1XCTnEyZD..., live 1ovGfVPL8...)."
+    owner: advisor
+
+  - id: jenny-mitich-sardines
+    status: open
+    summary: "Commit the Jenny Mitich sardine-brands block to Health_References.md once Drive writes are restored."
+    owner: advisor
+    blocked_by: drive-write-outage

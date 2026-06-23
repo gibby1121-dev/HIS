@@ -1,0 +1,22 @@
+# Writes captured while the Drive connector's write authorization was down
+# (2026-06-22 create_file outage). Commit each to its target file once writes
+# are restored, then remove it from this list and close the matching open loop.
+pending:
+  - id: jenny-mitich-sardines
+    target_file: references           # Health_References.md
+    convention: "one block per creator; newest on top within the creator's standing block"
+    captured_on: "2026-06-22"
+    source: "Jenny Mitich (carnivore creator) sardine-fast LTK list"
+    block: |
+      ### Jenny Mitich — carnivore creator
+      - Status: standing source (sardine/canned-fish brand guidance)
+      - Flagged content: sardine brands (from her sardine-fast LTK list)
+        - Wild Planet (her go-to: EVOO + lemon, lightly smoked)
+        - Season
+        - Matiz
+        - Nuri
+        - Fishwife
+        - Minerva
+        - Baltic Gold
+        - Crown Prince (tomato sauce)
+        - Urban Noon
