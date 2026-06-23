@@ -1,0 +1,16 @@
+StockNumber,AssetCategory,Make,Model,Year,ListPrice,AuctionValue,DaysOnMarket,Region
+SN1001,Excavators,Caterpillar,320,2019,189500,172000,42,Southeast
+SN1002,Excavators,Komatsu,PC210,2020,205000,188000,18,Southeast
+SN1003,Wheel Loaders,John Deere,544L,2018,142000,131000,75,Midwest
+SN1004,Wheel Loaders,Caterpillar,950M,2021,268000,255000,12,Midwest
+SN1005,Dozers,Caterpillar,D6,2017,198000,179000,98,Southwest
+SN1006,Dozers,Komatsu,D65,2019,224000,210000,33,Southwest
+SN1007,Skid Steers,Bobcat,S650,2020,46500,42000,9,Southeast
+SN1008,Skid Steers,Caterpillar,262D,2018,41000,37500,61,Northeast
+SN1009,Articulated Trucks,Volvo,A40G,2019,415000,392000,27,West
+SN1010,Articulated Trucks,Caterpillar,745,2021,498000,475000,15,West
+SN1011,Backhoe Loaders,John Deere,310SL,2018,78000,71000,120,Midwest
+SN1012,Backhoe Loaders,Case,580SN,2020,89000,83000,44,Midwest
+SN1013,Motor Graders,Caterpillar,140M,2017,212000,195000,88,Southwest
+SN1014,Excavators,Hitachi,ZX350,2020,231000,215000,21,Southeast
+SN1015,Skid Steers,John Deere,332G,2021,58000,54000,7,Northeast
