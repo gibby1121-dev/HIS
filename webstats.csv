@@ -1,0 +1,16 @@
+StockNumber,AssetCategory,Views,UniqueVisitors,Inquiries,SavedToWatchlist
+SN1001,Excavators,1820,1340,22,41
+SN1002,Excavators,3950,2870,61,118
+SN1003,Wheel Loaders,1110,810,9,18
+SN1004,Wheel Loaders,4480,3320,78,142
+SN1005,Dozers,1640,1190,14,29
+SN1006,Dozers,2890,2110,37,76
+SN1007,Skid Steers,2210,1680,33,58
+SN1008,Skid Steers,980,720,7,12
+SN1009,Articulated Trucks,1760,1290,19,34
+SN1010,Articulated Trucks,3320,2480,52,97
+SN1011,Backhoe Loaders,640,470,4,8
+SN1012,Backhoe Loaders,1980,1450,24,46
+SN1013,Motor Graders,1230,910,11,21
+SN1014,Excavators,3010,2240,44,89
+SN1015,Skid Steers,2640,1990,38,71
