@@ -11,17 +11,18 @@ owner: "gibby1121@gmail.com"
 files:
   master:
     title: "Health_Stack_MASTER.md"
-    id: "1Acbu3DMnRtTC-OUA2cQQ1zwISK1sbrzL"
+    id: "1GVNF4pNvrP9yXkpk4HfNuplT5xJpHcmH"
     purpose: "Combined health index — read this FIRST on every query."
     load_priority: 1
+    # New version filed 2026-06-24 to reconcile the stale References id in the
+    # source index. Old id 1Acbu3DMnRtTC-OUA2cQQ1zwISK1sbrzL is stale — delete it.
 
   references:
     title: "Health_References.md"
     id: "1ovGfVPL8OW0GdOeoRAuJKE8asR3gDlGY"
     purpose: "Standing trusted creators/sources — one block per creator."
     load_priority: 2
-    # MASTER's source index still points at the OLD id below. Reconcile it.
-    stale_id_in_master: "1XCTnEyZDtOzM8CkF9EmVsnJ4vHqjIUgq"
+    # Reconciled 2026-06-24: MASTER source index now points at the live id above.
 
   labs:
     title: "Labs_Log.md"

@@ -46,9 +46,11 @@ loops:
     owner: physician
 
   - id: stale-references-id
-    status: open
+    status: closed
     summary: "Fix stale Health_References.md id in the MASTER source index (old 1XCTnEyZD..., live 1ovGfVPL8...)."
     owner: advisor
+    closed_on: "2026-06-24"
+    note: "Reconciled. New MASTER 1GVNF4pNvrP9yXkpk4HfNuplT5xJpHcmH points the source index at the live id; old MASTER 1Acbu3DMnRtTC-OUA2cQQ1zwISK1sbrzL stale, pending manual deletion."
 
   - id: jenny-mitich-sardines
     status: open

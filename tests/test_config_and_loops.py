@@ -25,12 +25,13 @@ def test_scoped_search_query_uses_vault_parent():
     assert "title contains 'Labs_Log'" in q
 
 
-def test_references_stale_pointer_recorded():
+def test_references_pointer_reconciled():
+    # Reconciled 2026-06-24: MASTER source index now points at the live id,
+    # so there is no longer a stale pointer recorded.
     cfg = load_config()
     ref = cfg.references
     assert ref.id == "1ovGfVPL8OW0GdOeoRAuJKE8asR3gDlGY"
-    assert ref.stale_id_in_master == "1XCTnEyZDtOzM8CkF9EmVsnJ4vHqjIUgq"
-    assert ref.id != ref.stale_id_in_master
+    assert ref.stale_id_in_master is None
 
 
 def test_locked_file_flagged():
@@ -48,13 +49,19 @@ def test_open_loops_summary_lists_medical():
 def test_close_loop_marks_closed(tmp_path):
     loops = load_open_loops()
     n_open = len(loops.open())
-    loops.close("stale-references-id", on="2026-06-23", note="reconciled in MASTER")
+    loops.close("sauna-eval", on="2026-06-24", note="decided on infrared barrel unit")
     assert len(loops.open()) == n_open - 1
-    closed = loops.get("stale-references-id")
+    closed = loops.get("sauna-eval")
     assert closed.status == "closed"
-    assert closed.closed_on == "2026-06-23"
+    assert closed.closed_on == "2026-06-24"
     # save round-trips
     out = tmp_path / "loops.yaml"
     loops.save(out)
     again = load_open_loops(out)
-    assert again.get("stale-references-id").status == "closed"
+    assert again.get("sauna-eval").status == "closed"
+
+
+def test_stale_references_loop_already_closed():
+    # The reconcile write closed this loop in the data file.
+    loops = load_open_loops()
+    assert loops.get("stale-references-id").status == "closed"
