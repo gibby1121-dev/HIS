@@ -1,0 +1,545 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>HIS — Personal Knowledge OS</title>
+<style>
+  :root {
+    --bg: #0a0e14;
+    --bg-soft: #111722;
+    --panel: rgba(17, 23, 34, 0.92);
+    --border: #1f2a3a;
+    --text: #e6edf3;
+    --muted: #8b98a9;
+    --soil: #4ade80;
+    --soil-dim: #166534;
+    --market: #38bdf8;
+    --market-dim: #075985;
+    --evidence: #fbbf24;
+    --evidence-dim: #92400e;
+    --risk: #f87171;
+    --hub: #c084fc;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; overflow: hidden; }
+  body {
+    background: radial-gradient(circle at 30% 20%, #131c2b 0%, var(--bg) 60%);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  #stage { position: fixed; inset: 0; }
+  canvas { display: block; cursor: grab; }
+  canvas.dragging { cursor: grabbing; }
+
+  /* ---------- Header ---------- */
+  header {
+    position: fixed; top: 0; left: 0; right: 0;
+    padding: 18px 26px;
+    display: flex; align-items: baseline; gap: 16px;
+    pointer-events: none;
+    z-index: 5;
+  }
+  header h1 {
+    font-size: 19px; font-weight: 650; letter-spacing: 0.3px;
+  }
+  header h1 .accent { color: var(--soil); }
+  header .sub { color: var(--muted); font-size: 13px; }
+
+  /* ---------- Legend / Controls ---------- */
+  .panel {
+    position: fixed; z-index: 6;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    backdrop-filter: blur(10px);
+    box-shadow: 0 10px 40px rgba(0,0,0,0.45);
+  }
+  #legend {
+    left: 22px; bottom: 22px;
+    padding: 16px 18px;
+    font-size: 12.5px;
+    min-width: 210px;
+  }
+  #legend h3 { font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); margin-bottom: 11px; font-weight: 600; }
+  .legend-row { display: flex; align-items: center; gap: 10px; margin: 8px 0; cursor: pointer; opacity: 0.92; transition: opacity .15s; }
+  .legend-row:hover { opacity: 1; }
+  .legend-row.off { opacity: 0.32; }
+  .dot { width: 12px; height: 12px; border-radius: 50%; flex: none; box-shadow: 0 0 10px currentColor; }
+  .legend-row .label { flex: 1; }
+  .legend-row .count { color: var(--muted); font-variant-numeric: tabular-nums; }
+
+  #controls {
+    right: 22px; top: 70px;
+    padding: 14px;
+    display: flex; flex-direction: column; gap: 9px;
+    width: 210px;
+  }
+  #controls input[type="search"] {
+    background: var(--bg-soft); border: 1px solid var(--border);
+    color: var(--text); border-radius: 9px; padding: 9px 11px; font-size: 13px; width: 100%;
+    outline: none;
+  }
+  #controls input[type="search"]:focus { border-color: var(--soil); }
+  .btn-row { display: flex; gap: 8px; }
+  button {
+    flex: 1; background: var(--bg-soft); border: 1px solid var(--border);
+    color: var(--text); border-radius: 9px; padding: 8px 6px; font-size: 12px;
+    cursor: pointer; transition: all .15s;
+  }
+  button:hover { border-color: var(--soil); background: #16202e; }
+
+  /* ---------- Detail panel ---------- */
+  #detail {
+    right: 22px; bottom: 22px;
+    width: 330px; max-height: 60vh; overflow-y: auto;
+    padding: 0;
+    transform: translateY(20px); opacity: 0; pointer-events: none;
+    transition: opacity .2s, transform .2s;
+  }
+  #detail.show { transform: translateY(0); opacity: 1; pointer-events: auto; }
+  #detail .head { padding: 16px 18px 12px; border-bottom: 1px solid var(--border); position: sticky; top: 0; background: var(--panel); border-radius: 14px 14px 0 0; }
+  #detail .kind { font-size: 10.5px; text-transform: uppercase; letter-spacing: 1.2px; font-weight: 700; }
+  #detail h2 { font-size: 16.5px; margin-top: 5px; line-height: 1.3; }
+  #detail .body { padding: 14px 18px 18px; font-size: 13.5px; line-height: 1.55; color: #cdd6e0; }
+  #detail .body p { margin-bottom: 10px; }
+  #detail .tag { display: inline-block; font-size: 11px; padding: 2px 9px; border-radius: 20px; border: 1px solid var(--border); color: var(--muted); margin: 2px 4px 2px 0; }
+  #detail .conf { font-weight: 700; }
+  #detail .links-title { font-size: 10.5px; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); margin: 14px 0 7px; }
+  #detail .link-item { cursor: pointer; padding: 5px 0; color: #b9c4d2; font-size: 12.5px; border-bottom: 1px dashed var(--border); }
+  #detail .link-item:hover { color: var(--text); }
+  #detail .close { position: absolute; top: 14px; right: 14px; width: 24px; height: 24px; line-height: 22px; text-align: center; border-radius: 6px; cursor: pointer; color: var(--muted); }
+  #detail .close:hover { background: var(--bg-soft); color: var(--text); }
+
+  .hint { position: fixed; bottom: 22px; left: 50%; transform: translateX(-50%); color: var(--muted); font-size: 12px; z-index: 4; pointer-events: none; opacity: .7; }
+  ::-webkit-scrollbar { width: 8px; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 8px; }
+</style>
+</head>
+<body>
+<div id="stage"><canvas id="c"></canvas></div>
+
+<header>
+  <h1><span class="accent">HIS</span> · Knowledge OS</h1>
+  <span class="sub">an interactive map of a regenerative-soil venture &amp; a market-intelligence pipeline</span>
+</header>
+
+<div id="controls" class="panel">
+  <input type="search" id="search" placeholder="Search the graph…" autocomplete="off" />
+  <div class="btn-row">
+    <button id="reset">Reset view</button>
+    <button id="freeze">Pause</button>
+  </div>
+</div>
+
+<div id="legend" class="panel">
+  <h3>Domains &amp; node types</h3>
+  <div id="legend-rows"></div>
+</div>
+
+<div id="detail" class="panel">
+  <div class="head">
+    <div class="close" id="detail-close">✕</div>
+    <div class="kind" id="detail-kind"></div>
+    <h2 id="detail-title"></h2>
+  </div>
+  <div class="body" id="detail-body"></div>
+</div>
+
+<div class="hint">drag to pan · scroll to zoom · click a node to explore · drag a node to reposition</div>
+
+<script>
+/* ============================================================
+   HIS — Personal Knowledge OS
+   Self-contained interactive knowledge graph.
+   Data is derived from this repository's documents:
+     - investor-deck.md         (Regenerative Soil Biology venture)
+     - notebooklm_source.md     (Sandhills Market Snapshot)
+     - MARKET_SNAPSHOT_README.md / market_snapshot.py (pipeline)
+   ============================================================ */
+
+const TYPES = {
+  root:     { color: '#c084fc', label: 'Knowledge OS', r: 26 },
+  domain:   { color: '#a78bfa', label: 'Domain',       r: 20 },
+  thesis:   { color: '#4ade80', label: 'Thesis / Insight', r: 15 },
+  product:  { color: '#34d399', label: 'Product / Method', r: 14 },
+  evidence: { color: '#fbbf24', label: 'Evidence (confidence)', r: 12 },
+  risk:     { color: '#f87171', label: 'Open question / Risk', r: 12 },
+  market:   { color: '#38bdf8', label: 'Market signal', r: 13 },
+  pipeline: { color: '#22d3ee', label: 'Data pipeline', r: 13 },
+};
+
+// ---- Nodes -------------------------------------------------
+const NODES = [
+  { id:'root', type:'root', label:'HIS Knowledge OS',
+    desc:'Two interlocking bodies of work: a science-first regenerative soil-biology venture, and a market-intelligence data pipeline for heavy equipment. Click any node to drill in.' },
+
+  // ===== DOMAIN A: SOIL BIOLOGY VENTURE =====
+  { id:'soil', type:'domain', label:'Regenerative Soil Biology',
+    desc:'A venture thesis: don’t grow crops, grow soil biology. The crop is the interest paid on living biological capital. Restore the microbial engine of degraded Midwestern cropland — and, crucially, measure it.' },
+
+  { id:'problem', type:'thesis', label:'Problem: degraded soil biology',
+    desc:'A century of tillage and nitrogen fertilizer stripped fungi out of continuous-corn Midwestern soils. Farmers now rent yield from inputs every year instead of owning it in the soil.' },
+  { id:'insight', type:'thesis', label:'Insight: soil is a microbiome',
+    desc:'The same principle that governs the human gut governs soil: function lives in a diverse, coupled community — not in any single organism. Yet the market sells single strains.' },
+  { id:'thesis', type:'thesis', label:'Thesis: restore + feed the partnership',
+    desc:'Degraded soil is missing the fungal half of a cross-kingdom handoff and the structure that lets the partnership form. Model is nurture, not control: deliver the missing functional partners AND the habitat. Inoculate + feed.' },
+  { id:'wedge', type:'thesis', label:'Wedge: the measurement gap',
+    desc:'All improvement comes from measurement, and the industry cannot measure soil health. There are no validated reference ranges — no "blood panel for soil." Whoever builds the function-anchored readout owns the instrument the field needs.' },
+
+  { id:'method', type:'product', label:'Method: 3-soil reference delta',
+    desc:'Sample degraded target soil, adjacent undisturbed reference soil, and the bioreactor product — with one locked measurement stack. The beneficial guild = the delta: present in healthy soil AND product, depleted in degraded soil. Never isolate a single strain.' },
+  { id:'product', type:'product', label:'Product: coupled fungal+bacterial inoculum',
+    desc:'A high-biomass, functionally-coupled living consortium from a Johnson-Su–lineage bioreactor. Every batch fingerprinted by sequencing + function and delivered with prebiotic context so it establishes instead of washing out.' },
+  { id:'moat', type:'product', label:'Moat: the diagnostic data flywheel',
+    desc:'Two assets — the inoculant, and the durable one: validated, function-anchored soil-biology reference ranges built as a byproduct of the venture’s own trials. More fields → better ranges → better diagnosis → better product.' },
+  { id:'plan', type:'product', label:'Plan: Characterize → Prove → Scale',
+    desc:'Phase 0 characterize (3-soil baseline, lock assays). Phase 1 prove (multi-site trial vs nutrient-matched control, fungi-knockdown arm, carbon tracing — 3yr). Phase 2 scale (inoculant + diagnostic subscription). Built-in kill switch.' },
+
+  // Evidence nodes (confidence-rated)
+  { id:'ev_depleted', type:'evidence', label:'Cropland is fungal-depleted', conf:'HIGH',
+    desc:'F:B biomass falls predictably along the disturbance gradient: forest > grassland > cropland. Tillage and N fertilization specifically suppress fungi. de Vries 2006; PMC10597451.' },
+  { id:'ev_strain', type:'evidence', label:'Single-strain inoculants fail', conf:'HIGH',
+    desc:'Up to ~90% of single-strain inoculants fail to establish — they wash out. Coupled consortia are the path. O’Callaghan et al. 2022, Soil Use & Management.' },
+  { id:'ev_division', type:'evidence', label:'Cross-kingdom division of labor', conf:'HIGH',
+    desc:'Fungi break down recalcitrant residue; bacteria metabolize released nutrients and fix N. Pattern recurs in soil, rumen, ant/termite fungiculture, fermentation — convergent evolution. Frey-Klett 2011; Worrich 2017.' },
+  { id:'ev_carbon', type:'evidence', label:'Fungal necromass builds stable C', conf:'HIGH',
+    desc:'Fungal residue (necromass) builds the most stable soil carbon. Wang et al. 2021.' },
+  { id:'ev_noranges', type:'evidence', label:'No validated soil reference ranges', conf:'HIGH',
+    desc:'The F:B ratio is method-confounded and a contested functional predictor; no validated soil-health reference ranges exist. Rousk & Frey 2015; Joergensen & Wichern 2018. This gap IS the opportunity.' },
+  { id:'risk_causal', type:'risk', label:'UNPROVEN: fungi causally lift yield',
+    desc:'That restoring fungi causally lifts yield and carbon independent of applied nutrients is unproven by anyone, including incumbents. No clean field trial exists. The category runs on belief — Phase 1 is designed to prove or kill this.' },
+
+  // ===== DOMAIN B: MARKET INTELLIGENCE =====
+  { id:'market', type:'domain', label:'Sandhills Market Snapshot',
+    desc:'A self-contained data pipeline that merges internal lot inventory with Sandhills WebStats traffic, scores buyer engagement, overlays regional market-report trends, and emits a NotebookLM-ready briefing.' },
+
+  { id:'pipe_load', type:'pipeline', label:'Load & validate (3 CSVs)',
+    desc:'Loads inventory.csv, webstats.csv, market_trends.csv and fails loudly if a column is missing or a file is empty — catching a changed source-export format early.' },
+  { id:'pipe_merge', type:'pipeline', label:'Clean & merge on StockNumber',
+    desc:'Joins inventory + webstats on StockNumber, backfilling unmatched lots with category-average views.' },
+  { id:'pipe_score', type:'pipeline', label:'Buyer Engagement Score',
+    desc:'Engagement = Views ÷ Days on Market. Higher means more buyer interest per day a lot sits. The core ranking metric for the whole snapshot.' },
+  { id:'pipe_trend', type:'pipeline', label:'Cross-reference market trends',
+    desc:'Flags asset categories where regional inventory is dropping while price or auction value is rising — the "hot-selling" condition.' },
+  { id:'pipe_render', type:'pipeline', label:'Render NotebookLM source',
+    desc:'Emits notebooklm_source.md with a 🔥 Hot-Selling Action Items section pinned on top, then the full ranked dataset — ready to upload to Google NotebookLM and chat with.' },
+
+  { id:'mkt_hot', type:'market', label:'10 hot-selling lots flagged',
+    desc:'Of 15 lots, 10 sit in segments where supply is shrinking while pricing/auction climbs — prioritized for pricing reviews and outreach.' },
+  { id:'mkt_top', type:'market', label:'Top engagement: SN1015',
+    desc:'John Deere 332G skid steer, Northeast — 2,640 views over 7 days = 377.14 engagement, the highest in the dataset. Avg across all lots: 125.88.' },
+  { id:'mkt_west', type:'market', label:'Signal: West articulated trucks',
+    desc:'Strongest regional trend: inventory −14.8%, price +9.1%, auction +7.7%. Caterpillar 745 & Volvo A40G lots ride this segment.' },
+  { id:'mkt_se', type:'market', label:'Signal: Southeast excavators',
+    desc:'Inventory −12.4%, price +6.8%, auction +5.1%. Komatsu PC210, Hitachi ZX350, Caterpillar 320 lots sit here.' },
+];
+
+// ---- Edges -------------------------------------------------
+const EDGES = [
+  ['root','soil'], ['root','market'],
+
+  // soil structure
+  ['soil','problem'], ['soil','insight'], ['soil','thesis'], ['soil','wedge'],
+  ['problem','insight'], ['insight','thesis'], ['thesis','wedge'],
+  ['thesis','method'], ['method','product'], ['wedge','moat'], ['product','moat'],
+  ['moat','plan'], ['thesis','plan'],
+
+  // evidence -> claims
+  ['problem','ev_depleted'], ['insight','ev_strain'], ['thesis','ev_division'],
+  ['moat','ev_carbon'], ['wedge','ev_noranges'], ['plan','risk_causal'],
+  ['product','ev_strain'], ['method','ev_depleted'],
+
+  // market structure
+  ['market','pipe_load'], ['pipe_load','pipe_merge'], ['pipe_merge','pipe_score'],
+  ['pipe_score','pipe_trend'], ['pipe_trend','pipe_render'],
+  ['pipe_score','mkt_top'], ['pipe_trend','mkt_hot'],
+  ['mkt_hot','mkt_west'], ['mkt_hot','mkt_se'], ['pipe_render','mkt_hot'],
+
+  // cross-domain: both are measurement-first
+  ['wedge','market'],
+];
+
+/* ============================================================
+   Engine: force-directed layout on canvas
+   ============================================================ */
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+let W, H, DPR;
+function resize() {
+  DPR = window.devicePixelRatio || 1;
+  W = window.innerWidth; H = window.innerHeight;
+  canvas.width = W * DPR; canvas.height = H * DPR;
+  canvas.style.width = W+'px'; canvas.style.height = H+'px';
+  ctx.setTransform(DPR,0,0,DPR,0,0);
+}
+window.addEventListener('resize', resize); resize();
+
+// index
+const N = {};
+NODES.forEach(n => { N[n.id] = n; n.type_ = TYPES[n.type]; });
+const adj = {};
+NODES.forEach(n => adj[n.id] = []);
+EDGES.forEach(([a,b]) => { adj[a].push(b); adj[b].push(a); });
+
+// initial positions (radial seeding by domain)
+NODES.forEach((n,i) => {
+  const ang = (i / NODES.length) * Math.PI * 2;
+  n.x = W/2 + Math.cos(ang) * (120 + Math.random()*220);
+  n.y = H/2 + Math.sin(ang) * (120 + Math.random()*220);
+  n.vx = 0; n.vy = 0;
+});
+N.root.x = W/2; N.root.y = H/2;
+
+// view transform
+const view = { x: 0, y: 0, k: 1 };
+let frozen = false;
+let activeFilter = null;     // node type toggled off set
+const offTypes = new Set();
+let selected = null;
+let highlight = new Set();
+let searchHits = new Set();
+
+// physics
+function step() {
+  const k = 0.0016;          // repulsion
+  const spring = 0.011;      // edge spring
+  const restLen = 128;
+  const center = 0.00045;
+
+  for (let i=0;i<NODES.length;i++){
+    const a = NODES[i];
+    if (a.fixed) continue;
+    for (let j=i+1;j<NODES.length;j++){
+      const b = NODES[j];
+      let dx = a.x-b.x, dy = a.y-b.y;
+      let d2 = dx*dx+dy*dy || 0.01;
+      let d = Math.sqrt(d2);
+      const ra = a.type_.r, rb = b.type_.r;
+      let force = (k * 17000) / d2;
+      // soft collision
+      const minD = ra+rb+34;
+      if (d < minD) force += (minD-d) * 0.05;
+      const fx = (dx/d)*force, fy = (dy/d)*force;
+      a.vx += fx; a.vy += fy; b.vx -= fx; b.vy -= fy;
+    }
+  }
+  EDGES.forEach(([ai,bi])=>{
+    const a=N[ai], b=N[bi];
+    let dx=b.x-a.x, dy=b.y-a.y;
+    let d=Math.sqrt(dx*dx+dy*dy)||0.01;
+    const f=(d-restLen)*spring;
+    const fx=(dx/d)*f, fy=(dy/d)*f;
+    if(!a.fixed){a.vx+=fx;a.vy+=fy;}
+    if(!b.fixed){b.vx-=fx;b.vy-=fy;}
+  });
+  NODES.forEach(n=>{
+    if(n.fixed) return;
+    n.vx += (W/2 - n.x)*center;
+    n.vy += (H/2 - n.y)*center;
+    n.vx *= 0.86; n.vy *= 0.86;
+    n.x += n.vx; n.y += n.vy;
+  });
+}
+
+function worldToScreen(x,y){ return [ (x - W/2)*view.k + W/2 + view.x, (y - H/2)*view.k + H/2 + view.y ]; }
+function screenToWorld(sx,sy){ return [ (sx - W/2 - view.x)/view.k + W/2, (sy - H/2 - view.y)/view.k + H/2 ]; }
+
+function visible(n){ return !offTypes.has(n.type); }
+
+function draw() {
+  ctx.clearRect(0,0,W,H);
+
+  // edges
+  EDGES.forEach(([ai,bi])=>{
+    const a=N[ai], b=N[bi];
+    if(!visible(a)||!visible(b)) return;
+    const [ax,ay]=worldToScreen(a.x,a.y);
+    const [bx,by]=worldToScreen(b.x,b.y);
+    const isHi = highlight.size && (highlight.has(ai)&&highlight.has(bi));
+    ctx.beginPath();
+    ctx.moveTo(ax,ay); ctx.lineTo(bx,by);
+    if(isHi){ ctx.strokeStyle='rgba(192,132,252,0.55)'; ctx.lineWidth=2; }
+    else if(highlight.size){ ctx.strokeStyle='rgba(120,140,160,0.06)'; ctx.lineWidth=1; }
+    else { ctx.strokeStyle='rgba(120,140,160,0.16)'; ctx.lineWidth=1; }
+    ctx.stroke();
+  });
+
+  // nodes
+  NODES.forEach(n=>{
+    if(!visible(n)) return;
+    const [x,y]=worldToScreen(n.x,n.y);
+    const r = n.type_.r * view.k;
+    const dim = highlight.size && !highlight.has(n.id);
+    const hit = searchHits.size && searchHits.has(n.id);
+
+    ctx.save();
+    // glow
+    ctx.shadowColor = n.type_.color;
+    ctx.shadowBlur = (selected===n.id||hit) ? 26 : (dim?2:12);
+    ctx.beginPath();
+    ctx.arc(x,y,r,0,Math.PI*2);
+    ctx.fillStyle = dim ? '#1a2230' : n.type_.color;
+    ctx.globalAlpha = dim ? 0.5 : 1;
+    ctx.fill();
+    ctx.restore();
+
+    // ring for selected / search hit
+    if(selected===n.id || hit){
+      ctx.beginPath(); ctx.arc(x,y,r+5,0,Math.PI*2);
+      ctx.strokeStyle = hit && selected!==n.id ? '#fff' : n.type_.color;
+      ctx.lineWidth=2; ctx.globalAlpha=0.9; ctx.stroke(); ctx.globalAlpha=1;
+    }
+
+    // confidence badge on evidence
+    if(n.conf && !dim){
+      ctx.fillStyle='#0a0e14'; ctx.font=`700 ${Math.max(8,8*view.k)}px sans-serif`;
+      ctx.textAlign='center'; ctx.textBaseline='middle';
+      ctx.fillText('✓', x, y);
+    }
+
+    // labels
+    const showLabel = view.k>0.55 || n.type==='root'||n.type==='domain' || selected===n.id || hit;
+    if(showLabel && !dim){
+      ctx.font=`${n.type==='domain'||n.type==='root'?600:500} ${Math.max(10, (n.type==='root'?14:n.type==='domain'?13:11))*Math.min(1.15,Math.max(0.85,view.k))}px -apple-system, sans-serif`;
+      ctx.textAlign='center'; ctx.textBaseline='top';
+      ctx.fillStyle = dim ? '#3a4555' : '#e6edf3';
+      ctx.shadowColor='#0a0e14'; ctx.shadowBlur=6;
+      ctx.fillText(n.label, x, y + r + 4);
+      ctx.shadowBlur=0;
+    }
+  });
+}
+
+function loop(){
+  if(!frozen){ for(let s=0;s<2;s++) step(); }
+  draw();
+  requestAnimationFrame(loop);
+}
+loop();
+
+/* ---------- interaction ---------- */
+let dragging=false, dragNode=null, panning=false, last={x:0,y:0}, moved=false;
+
+function pickNode(sx,sy){
+  for(let i=NODES.length-1;i>=0;i--){
+    const n=NODES[i]; if(!visible(n)) continue;
+    const [x,y]=worldToScreen(n.x,n.y);
+    const r=n.type_.r*view.k + 4;
+    if((sx-x)**2+(sy-y)**2 <= r*r) return n;
+  }
+  return null;
+}
+
+canvas.addEventListener('mousedown', e=>{
+  moved=false; last={x:e.clientX,y:e.clientY};
+  const n=pickNode(e.clientX,e.clientY);
+  if(n){ dragging=true; dragNode=n; n.fixed=true; canvas.classList.add('dragging'); }
+  else { panning=true; canvas.classList.add('dragging'); }
+});
+window.addEventListener('mousemove', e=>{
+  if(Math.abs(e.clientX-last.x)+Math.abs(e.clientY-last.y)>3) moved=true;
+  if(dragging&&dragNode){
+    const [wx,wy]=screenToWorld(e.clientX,e.clientY);
+    dragNode.x=wx; dragNode.y=wy; dragNode.vx=0; dragNode.vy=0;
+  } else if(panning){
+    view.x += e.clientX-last.x; view.y += e.clientY-last.y;
+    last={x:e.clientX,y:e.clientY};
+  }
+});
+window.addEventListener('mouseup', e=>{
+  if(dragging&&dragNode){ dragNode.fixed=false; }
+  if(!moved){
+    const n=pickNode(e.clientX,e.clientY);
+    if(n) select(n.id); else deselect();
+  }
+  dragging=false; panning=false; dragNode=null; canvas.classList.remove('dragging');
+});
+canvas.addEventListener('wheel', e=>{
+  e.preventDefault();
+  const f = e.deltaY<0 ? 1.12 : 0.89;
+  const nk = Math.min(3.2, Math.max(0.35, view.k*f));
+  // zoom toward cursor
+  const [wx,wy]=screenToWorld(e.clientX,e.clientY);
+  view.k=nk;
+  const [nx,ny]=worldToScreen(wx,wy);
+  view.x += e.clientX-nx; view.y += e.clientY-ny;
+}, {passive:false});
+
+/* ---------- selection / detail panel ---------- */
+const detail=document.getElementById('detail');
+function select(id){
+  selected=id;
+  highlight=new Set([id, ...adj[id]]);
+  const n=N[id];
+  document.getElementById('detail-kind').textContent = n.type_.label;
+  document.getElementById('detail-kind').style.color = n.type_.color;
+  document.getElementById('detail-title').textContent = n.label;
+  let html = `<p>${n.desc}</p>`;
+  if(n.conf) html += `<p><span class="tag conf" style="color:${n.conf==='HIGH'?'#4ade80':'#fbbf24'};border-color:currentColor">Confidence: ${n.conf}</span></p>`;
+  if(n.type==='risk') html += `<p><span class="tag" style="color:#f87171;border-color:currentColor">Open question</span></p>`;
+  const links = adj[id].filter(visibleId=>visible(N[visibleId]));
+  if(links.length){
+    html += `<div class="links-title">Connected (${links.length})</div>`;
+    links.forEach(l=>{ html += `<div class="link-item" data-go="${l}">${N[l].label}</div>`; });
+  }
+  document.getElementById('detail-body').innerHTML = html;
+  detail.classList.add('show');
+  document.querySelectorAll('#detail .link-item').forEach(el=>{
+    el.onclick=()=>{ select(el.dataset.go); focusNode(el.dataset.go); };
+  });
+}
+function deselect(){ selected=null; highlight=new Set(); detail.classList.remove('show'); }
+document.getElementById('detail-close').onclick=deselect;
+
+function focusNode(id){
+  const n=N[id];
+  view.k = Math.max(view.k, 1.1);
+  const [sx,sy]=worldToScreen(n.x,n.y);
+  view.x += (W/2 - sx); view.y += (H/2 - sy);
+}
+
+/* ---------- legend ---------- */
+const legendRows=document.getElementById('legend-rows');
+const typeOrder=['root','domain','thesis','product','evidence','risk','market','pipeline'];
+const counts={}; NODES.forEach(n=>counts[n.type]=(counts[n.type]||0)+1);
+typeOrder.forEach(t=>{
+  const row=document.createElement('div'); row.className='legend-row'; row.dataset.type=t;
+  row.innerHTML=`<span class="dot" style="color:${TYPES[t].color};background:${TYPES[t].color}"></span>
+    <span class="label">${TYPES[t].label}</span><span class="count">${counts[t]||0}</span>`;
+  row.onclick=()=>{
+    if(offTypes.has(t)){ offTypes.delete(t); row.classList.remove('off'); }
+    else { offTypes.add(t); row.classList.add('off'); }
+  };
+  legendRows.appendChild(row);
+});
+
+/* ---------- search ---------- */
+const search=document.getElementById('search');
+search.addEventListener('input', ()=>{
+  const q=search.value.trim().toLowerCase();
+  searchHits=new Set();
+  if(q){
+    NODES.forEach(n=>{
+      if(n.label.toLowerCase().includes(q) || (n.desc&&n.desc.toLowerCase().includes(q)))
+        searchHits.add(n.id);
+    });
+    // focus first hit
+    const first=[...searchHits][0];
+    if(first) focusNode(first);
+  }
+});
+
+/* ---------- buttons ---------- */
+document.getElementById('reset').onclick=()=>{
+  view.x=0; view.y=0; view.k=1; deselect(); search.value=''; searchHits=new Set();
+};
+const freezeBtn=document.getElementById('freeze');
+freezeBtn.onclick=()=>{ frozen=!frozen; freezeBtn.textContent=frozen?'Resume':'Pause'; };
+
+// settle the layout before first paint feel
+for(let i=0;i<260;i++) step();
+</script>
+</body>
+</html>
