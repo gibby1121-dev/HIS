@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>HIS — Systems &amp; Levels Architecture</title>
+<style>
+  :root{
+    --bg:#0a0e14; --bg2:#0d1320; --panel:rgba(15,21,32,.94); --border:#1f2a3a;
+    --text:#e6edf3; --muted:#8b98a9; --faint:#5a6675;
+    --soil:#4ade80; --soilbg:rgba(74,222,128,.07); --soilbd:rgba(74,222,128,.32);
+    --mkt:#38bdf8;  --mktbg:rgba(56,189,248,.07);  --mktbd:rgba(56,189,248,.32);
+    --rail:#c084fc; --flow:#fbbf24;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{
+    background:radial-gradient(circle at 25% 0%, #131c2b 0%, var(--bg) 55%);
+    color:var(--text); font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    -webkit-font-smoothing:antialiased; min-height:100%; overflow-x:hidden;
+  }
+  header{padding:22px 30px 6px;}
+  header h1{font-size:20px;font-weight:660;letter-spacing:.3px}
+  header h1 .a{color:var(--soil)} header h1 .b{color:var(--mkt)}
+  header p{color:var(--muted);font-size:13px;margin-top:4px;max-width:880px;line-height:1.5}
+
+  .wrap{position:relative;padding:14px 30px 80px;}
+  /* grid: rail | soil | market */
+  #grid{
+    position:relative; display:grid;
+    grid-template-columns:172px 1fr 1fr;
+    gap:20px 26px; align-items:stretch;
+  }
+  .colhead{position:sticky;top:0;z-index:3;padding:10px 4px 12px}
+  .colhead .badge{display:inline-flex;align-items:center;gap:8px;font-weight:650;font-size:15px}
+  .colhead .badge .dot{width:11px;height:11px;border-radius:50%}
+  .colhead .desc{color:var(--muted);font-size:12px;margin-top:4px;line-height:1.45}
+  .colhead.soil .badge{color:var(--soil)} .colhead.soil .dot{background:var(--soil)}
+  .colhead.mkt .badge{color:var(--mkt)} .colhead.mkt .dot{background:var(--mkt)}
+
+  /* tier rail */
+  .tier{display:flex;flex-direction:column;justify-content:center;gap:5px;padding:12px 12px;
+    border-right:2px solid var(--border);}
+  .tier .lvl{font-size:10.5px;letter-spacing:1.4px;text-transform:uppercase;color:var(--rail);font-weight:700}
+  .tier .nm{font-size:14px;font-weight:620}
+  .tier .role{font-size:11.5px;color:var(--muted);line-height:1.4}
+
+  /* system cards */
+  .card{
+    position:relative;z-index:2;border-radius:13px;border:1px solid var(--border);
+    background:var(--bg2);padding:13px 15px;cursor:pointer;
+    transition:transform .14s,border-color .14s,box-shadow .14s,opacity .2s;
+  }
+  .card:hover{transform:translateY(-2px);box-shadow:0 10px 30px rgba(0,0,0,.4)}
+  .soil .card{background:linear-gradient(180deg,var(--soilbg),transparent 70%),var(--bg2);border-color:var(--soilbd)}
+  .mkt  .card{background:linear-gradient(180deg,var(--mktbg),transparent 70%),var(--bg2);border-color:var(--mktbd)}
+  .card .t{font-size:14.5px;font-weight:640;display:flex;align-items:center;gap:8px;line-height:1.25}
+  .card .icon{font-size:15px;filter:grayscale(.1)}
+  .card .role{font-size:12px;color:var(--muted);margin-top:5px;line-height:1.45}
+  .card .resp{font-size:11.5px;color:var(--faint);margin-top:7px;line-height:1.45;
+    border-top:1px dashed var(--border);padding-top:7px}
+  .card .resp b{color:#aeb8c6;font-weight:600}
+  .card .arts{margin-top:8px;display:flex;flex-wrap:wrap;gap:5px}
+  .card .chip{font-size:10px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
+    color:var(--muted);background:#0a0e14;border:1px solid var(--border);border-radius:5px;padding:2px 6px}
+  .card.dim{opacity:.32;filter:saturate(.5)}
+  .card.active{box-shadow:0 0 0 2px currentColor, 0 12px 34px rgba(0,0,0,.5)}
+  .soil .card.active{color:var(--soil)} .mkt .card.active{color:var(--mkt)}
+
+  /* SVG connector overlay */
+  #links{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:1;overflow:visible}
+
+  /* legend / footer */
+  .foot{display:flex;gap:26px;flex-wrap:wrap;align-items:center;margin:26px 30px 0;
+    color:var(--muted);font-size:12px}
+  .foot .k{display:flex;align-items:center;gap:8px}
+  .foot .ln{width:30px;height:0;border-top:2px solid var(--muted)}
+  .foot .ln.flow{border-top-color:var(--flow)}
+  .foot .ln.fb{border-top:2px dashed var(--soil)}
+  .foot .ln.cross{border-top:2px dashed #c084fc}
+
+  /* detail drawer */
+  #drawer{position:fixed;top:0;right:0;height:100%;width:380px;max-width:92vw;z-index:20;
+    background:var(--panel);border-left:1px solid var(--border);backdrop-filter:blur(12px);
+    box-shadow:-16px 0 50px rgba(0,0,0,.5);transform:translateX(105%);transition:transform .26s cubic-bezier(.2,.8,.2,1);
+    display:flex;flex-direction:column}
+  #drawer.show{transform:translateX(0)}
+  #drawer .dh{padding:20px 22px 16px;border-bottom:1px solid var(--border)}
+  #drawer .lvl{font-size:10.5px;letter-spacing:1.4px;text-transform:uppercase;font-weight:700}
+  #drawer h2{font-size:18px;margin-top:7px;line-height:1.3}
+  #drawer .dom{font-size:12px;color:var(--muted);margin-top:6px}
+  #drawer .db{padding:18px 22px;overflow-y:auto;font-size:13.5px;line-height:1.6;color:#cdd6e0}
+  #drawer .sec{margin-bottom:16px}
+  #drawer .sec h4{font-size:10.5px;letter-spacing:1.2px;text-transform:uppercase;color:var(--muted);margin-bottom:6px}
+  #drawer .arts2{display:flex;flex-wrap:wrap;gap:6px}
+  #drawer .chip2{font-size:11px;font-family:ui-monospace,monospace;color:#b9c4d2;background:var(--bg2);
+    border:1px solid var(--border);border-radius:6px;padding:3px 8px}
+  #drawer .io{display:flex;gap:8px;align-items:flex-start;font-size:12.5px;margin:5px 0}
+  #drawer .io .ar{color:var(--flow);font-weight:700;flex:none}
+  #drawer .close{position:absolute;top:16px;right:18px;width:26px;height:26px;border-radius:7px;
+    text-align:center;line-height:24px;color:var(--muted);cursor:pointer}
+  #drawer .close:hover{background:var(--bg2);color:var(--text)}
+  .scrim{position:fixed;inset:0;background:rgba(0,0,0,.35);z-index:15;opacity:0;pointer-events:none;transition:opacity .26s}
+  .scrim.show{opacity:1;pointer-events:auto}
+  ::-webkit-scrollbar{width:9px}::-webkit-scrollbar-thumb{background:var(--border);border-radius:8px}
+
+  @media(max-width:880px){
+    #grid{grid-template-columns:1fr}
+    .tier{border-right:none;border-bottom:1px solid var(--border);flex-direction:row;gap:12px;align-items:baseline}
+    #links{display:none}
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1><span class="a">HIS</span> Systems &amp; Levels — <span class="b">Architecture</span></h1>
+  <p>Two parallel systems in the knowledge OS, drawn level-by-level. Each tier on the left names a
+  <em>level</em> and its job; each card is a <em>system component</em> with its role and responsibility.
+  Gold arrows are data flow down a domain; the dashed green loop is the venture's data flywheel; the
+  dashed purple links are cross-domain interactions. Click any card for detail.</p>
+</header>
+
+<div class="wrap">
+  <div id="grid">
+    <!-- column headers -->
+    <div></div>
+    <div class="colhead soil">
+      <span class="badge"><span class="dot"></span>Regenerative Soil-Biology Venture</span>
+      <div class="desc">An operational pipeline that turns soil samples into a qualified product and a compounding diagnostic.</div>
+    </div>
+    <div class="colhead mkt">
+      <span class="badge"><span class="dot"></span>Sandhills Market-Snapshot Pipeline</span>
+      <div class="desc">A software pipeline (<code>market_snapshot.py</code>) that turns CSV exports into a NotebookLM briefing.</div>
+    </div>
+  </div>
+
+  <svg id="links"></svg>
+
+  <div class="foot">
+    <div class="k"><span class="ln flow"></span> data flow (down a domain)</div>
+    <div class="k"><span class="ln fb"></span> feedback / data flywheel</div>
+    <div class="k"><span class="ln cross"></span> cross-domain interaction</div>
+    <div class="k">click a card → role, responsibility &amp; I/O</div>
+  </div>
+</div>
+
+<div class="scrim" id="scrim"></div>
+<div id="drawer">
+  <div class="dh">
+    <div class="close" id="dclose">✕</div>
+    <div class="lvl" id="dlvl"></div>
+    <h2 id="dtitle"></h2>
+    <div class="dom" id="ddom"></div>
+  </div>
+  <div class="db" id="dbody"></div>
+</div>
+
+<script>
+/* ============================================================
+   Systems & Levels — data derived from the repository:
+   market_snapshot.py / MARKET_SNAPSHOT_README.md  (pipeline)
+   investor-deck.md                                (venture)
+   ============================================================ */
+
+// Tiers (levels), top -> bottom. Each has a generic "level role".
+const TIERS = [
+  { id:'src',   lvl:'Level 0', nm:'Sources',         role:'Raw inputs enter the system.' },
+  { id:'ingest',lvl:'Level 1', nm:'Ingest & Validate',role:'Read, type-check, fail loudly on bad shape.' },
+  { id:'proc',  lvl:'Level 2', nm:'Process & Score',  role:'Clean, merge, transform, rank.' },
+  { id:'persist',lvl:'Level 3',nm:'Persist / Knowledge',role:'A queryable layer the work compounds into.' },
+  { id:'serve', lvl:'Level 4', nm:'Serve / Product',  role:'The deliverable handed to a consumer.' },
+  { id:'consume',lvl:'Level 5',nm:'Consume / Outcome', role:'Where value is realized — and measured.' },
+];
+
+// Cards. domain: 'soil' | 'mkt'. Keyed by tier id.
+const CARDS = {
+  // ---------- SOIL VENTURE ----------
+  soil:{
+    src:{ icon:'🌱', t:'3-Soil Sampling', role:'Collect the patient, the recovered state, and the product.',
+      resp:'<b>Responsible for:</b> sampling degraded target soil, an adjacent undisturbed reference soil (same series), and the bioreactor product — so a comparison is even possible.',
+      arts:['degraded soil','reference soil','bioreactor product'],
+      inp:['Field sites','Fencerow / prairie / woodlot'], outp:['Three paired samples → assay'] },
+    ingest:{ icon:'🔬', t:'Locked Measurement Stack', role:'One identical assay stack for every sample.',
+      resp:'<b>Responsible for:</b> sequencing + function assays (enzyme activity, respiration) run identically across all three samples, so differences are real signal, not method drift.',
+      arts:['amplicon/shotgun seq','enzyme activity','respiration'],
+      inp:['Three paired samples'], outp:['Community + function readouts'] },
+    proc:{ icon:'🧬', t:'Guild Classification + Reference Delta', role:'Name the missing functional guild by subtraction.',
+      resp:'<b>Responsible for:</b> classifying taxa into saprotroph / mycorrhizal / pathogen guilds, then computing the <b>delta</b> — present in healthy soil AND product, depleted in degraded soil. Never isolates a single strain.',
+      arts:['guild bins','Δ = healthy ∩ product − degraded'],
+      inp:['Community + function readouts'], outp:['Beneficial-guild signature','Batch fingerprint'] },
+    persist:{ icon:'🗄️', t:'Soil-Biology Reference Ranges', role:'The “blood panel for soil” — the durable asset.',
+      resp:'<b>Responsible for:</b> accumulating validated, function-anchored reference ranges and per-batch fingerprints. This is the moat: data competitors can’t shortcut.',
+      arts:['reference-range DB','batch QC records'],
+      inp:['Beneficial-guild signatures','Trial outcomes (feedback)'], outp:['Diagnosis','Product spec'] },
+    serve:{ icon:'🧪', t:'Qualified Inoculum + Diagnostic', role:'A spec’d product and the test that grades it.',
+      resp:'<b>Responsible for:</b> producing a high-biomass coupled fungal+bacterial inoculum (Johnson-Su lineage) delivered with prebiotic context, plus the diagnostic readout — qualified, not crafted.',
+      arts:['coupled inoculum','prebiotic context','diagnostic readout'],
+      inp:['Product spec','Diagnosis'], outp:['Inoculant applied to fields','Subscription diagnostic'] },
+    consume:{ icon:'🌾', t:'Fields & Phase-1 Trials', role:'Where biology must beat a nutrient-matched control.',
+      resp:'<b>Responsible for:</b> multi-site trials (biology vs nutrient-matched compost, fungi-knockdown arm, carbon tracing). Yield is the “interest”; outcomes feed back to the reference DB. Built-in kill switch if it doesn’t beat the control.',
+      arts:['field trials','carbon tracing','kill switch'],
+      inp:['Inoculant + diagnostic'], outp:['Yield / carbon outcomes → flywheel'] },
+  },
+  // ---------- MARKET PIPELINE ----------
+  mkt:{
+    src:{ icon:'📄', t:'Three CSV Exports', role:'Internal inventory, web traffic, regional trends.',
+      resp:'<b>Responsible for:</b> supplying the raw lot inventory, Sandhills WebStats traffic, and exported Market Report trends. Swappable for real exports as long as headers match.',
+      arts:['inventory.csv','webstats.csv','market_trends.csv'],
+      inp:['Sandhills exports'], outp:['Three raw frames → loader'] },
+    ingest:{ icon:'🛂', t:'load_csv + Schema Guard', role:'Read each CSV and assert required columns.',
+      resp:'<b>Responsible for:</b> reading each file and raising <code>PipelineError</code> (non-zero exit) if a file is missing, empty, unparseable, or missing a required column — catching changed export formats loudly.',
+      arts:['load_csv()','REQUIRED_*_COLS','PipelineError'],
+      inp:['Three raw frames'], outp:['Validated DataFrames'] },
+    proc:{ icon:'⚙️', t:'Clean → Merge → Score → Flag', role:'Join traffic to lots; rank; spot the squeeze.',
+      resp:'<b>Responsible for:</b> cleaning + de-duping, merging on <code>StockNumber</code> (category-average backfill), computing <b>Engagement = Views ÷ Days on Market</b>, then flagging segments where inventory is dropping while price/auction rises.',
+      arts:['merge_and_score()','Views ÷ DOM','flag_hot_categories()'],
+      inp:['Validated DataFrames'], outp:['Scored + ranked dataset','Hot-segment matches'] },
+    persist:{ icon:'📊', t:'Scored Dataset (in-memory model)', role:'The single ranked, cross-referenced table.',
+      resp:'<b>Responsible for:</b> holding the merged, scored, hot-flagged dataset — the model every output view is rendered from. Engagement-ranked, hot lots cross-referenced to regional reasons.',
+      arts:['scored frame','hot_inventory','_hot_lookup'],
+      inp:['Scored dataset + hot matches'], outp:['Rows for the renderer'] },
+    serve:{ icon:'📝', t:'NotebookLM Source Document', role:'A single Markdown briefing, action items pinned.',
+      resp:'<b>Responsible for:</b> rendering <code>notebooklm_source.md</code> — a 🔥 Hot-Selling Action Items table on top, regional trend signals, the full ranked inventory, and a plain-language dataset summary.',
+      arts:['build_markdown()','notebooklm_source.md'],
+      inp:['Rows for the renderer'], outp:['Markdown file'] },
+    consume:{ icon:'💬', t:'Google NotebookLM', role:'Chat with the live market snapshot.',
+      resp:'<b>Responsible for:</b> being the consumption surface — upload the Markdown and interrogate the snapshot conversationally. The insights inform pricing reviews and outreach.',
+      arts:['NotebookLM','pricing / outreach'],
+      inp:['Markdown file'], outp:['Decisions: pricing, outreach, go-to-market'] },
+  }
+};
+
+// Orchestration notes shown on the relevant cards’ drawer.
+const ORCH = {
+  soil:'Orchestrated by the phase plan: <b>Characterize → Prove → Scale</b>, with a falsifiable kill switch.',
+  mkt:'Orchestrated by <code>run()</code>/<code>main()</code> in market_snapshot.py, driven by <code>run_market_snapshot.sh</code> / <code>.bat</code> with clean exit codes.'
+};
+
+/* ---------- build the grid ---------- */
+const gridEl = document.getElementById('grid');
+const cardEls = {}; // `${domain}:${tier}` -> element
+
+TIERS.forEach(tier=>{
+  // rail cell
+  const rail=document.createElement('div'); rail.className='tier';
+  rail.innerHTML=`<div class="lvl">${tier.lvl}</div><div class="nm">${tier.nm}</div><div class="role">${tier.role}</div>`;
+  gridEl.appendChild(rail);
+  // soil + mkt cells
+  ['soil','mkt'].forEach(dom=>{
+    const c=CARDS[dom][tier.id];
+    const wrap=document.createElement('div'); wrap.className=dom;
+    const el=document.createElement('div'); el.className='card';
+    el.innerHTML=`<div class="t"><span class="icon">${c.icon}</span>${c.t}</div>
+      <div class="role">${c.role}</div>
+      <div class="resp">${c.resp}</div>
+      <div class="arts">${c.arts.map(a=>`<span class="chip">${a}</span>`).join('')}</div>`;
+    el.onclick=()=>openDrawer(dom,tier.id);
+    wrap.appendChild(el); gridEl.appendChild(wrap);
+    cardEls[`${dom}:${tier.id}`]=el;
+  });
+});
+
+/* ---------- SVG connectors ---------- */
+const svg=document.getElementById('links');
+const SVGNS='http://www.w3.org/2000/svg';
+function defs(){
+  svg.innerHTML='';
+  const d=document.createElementNS(SVGNS,'defs');
+  d.innerHTML=`
+    <marker id="ah" markerWidth="9" markerHeight="9" refX="6.5" refY="3" orient="auto">
+      <path d="M0,0 L7,3 L0,6 Z" fill="#fbbf24"/></marker>
+    <marker id="ahg" markerWidth="9" markerHeight="9" refX="6.5" refY="3" orient="auto">
+      <path d="M0,0 L7,3 L0,6 Z" fill="#4ade80"/></marker>
+    <marker id="ahp" markerWidth="9" markerHeight="9" refX="6.5" refY="3" orient="auto">
+      <path d="M0,0 L7,3 L0,6 Z" fill="#c084fc"/></marker>`;
+  svg.appendChild(d);
+}
+function center(el,edge){
+  const r=el.getBoundingClientRect(), s=svg.getBoundingClientRect();
+  const x=r.left-s.left, y=r.top-s.top;
+  if(edge==='bottom') return [x+r.width/2, y+r.height];
+  if(edge==='top')    return [x+r.width/2, y];
+  if(edge==='right')  return [x+r.width, y+r.height/2];
+  if(edge==='left')   return [x, y+r.height/2];
+  return [x+r.width/2, y+r.height/2];
+}
+function line(x1,y1,x2,y2,opts={}){
+  const p=document.createElementNS(SVGNS,'path');
+  let dd;
+  if(opts.curve){
+    const mx=(x1+x2)/2;
+    dd=`M${x1},${y1} C${x1},${(y1+y2)/2} ${x2},${(y1+y2)/2} ${x2},${y2}`;
+  } else { dd=`M${x1},${y1} L${x2},${y2}`; }
+  p.setAttribute('d',dd);
+  p.setAttribute('fill','none');
+  p.setAttribute('stroke',opts.stroke||'#fbbf24');
+  p.setAttribute('stroke-width',opts.w||2);
+  if(opts.dash) p.setAttribute('stroke-dasharray',opts.dash);
+  if(opts.marker) p.setAttribute('marker-end',opts.marker);
+  p.setAttribute('opacity',opts.op!=null?opts.op:.85);
+  if(opts.cls) p.setAttribute('class',opts.cls);
+  svg.appendChild(p);
+  return p;
+}
+function drawLinks(){
+  defs();
+  // vertical data-flow within each domain
+  ['soil','mkt'].forEach(dom=>{
+    for(let i=0;i<TIERS.length-1;i++){
+      const a=cardEls[`${dom}:${TIERS[i].id}`], b=cardEls[`${dom}:${TIERS[i+1].id}`];
+      const [x1,y1]=center(a,'bottom'); const [x2,y2]=center(b,'top');
+      line(x1,y1,x2,y2-2,{stroke:'#fbbf24',marker:'url(#ah)',w:2,
+        cls:`flow ${dom}-${TIERS[i].id}-${TIERS[i+1].id}`});
+    }
+  });
+  // soil feedback flywheel: consume -> persist (curve on the right)
+  const cc=cardEls['soil:consume'], pp=cardEls['soil:persist'];
+  let [fx1,fy1]=center(cc,'right'); let [fx2,fy2]=center(pp,'right');
+  const off=46;
+  const fb=document.createElementNS(SVGNS,'path');
+  fb.setAttribute('d',`M${fx1},${fy1} C${fx1+off},${fy1} ${fx2+off},${fy2} ${fx2+4},${fy2}`);
+  fb.setAttribute('fill','none');fb.setAttribute('stroke','#4ade80');fb.setAttribute('stroke-width',2);
+  fb.setAttribute('stroke-dasharray','6 5');fb.setAttribute('marker-end','url(#ahg)');
+  fb.setAttribute('opacity',.8);fb.setAttribute('class','fb');
+  svg.appendChild(fb);
+
+  // cross-domain: market consume (insights) -> soil serve (go-to-market)
+  const mc=cardEls['mkt:consume'], ss=cardEls['soil:serve'];
+  let [cx1,cy1]=center(mc,'left'); let [cx2,cy2]=center(ss,'right');
+  line(cx1,cy1,cx2,cy2,{stroke:'#c084fc',dash:'5 5',marker:'url(#ahp)',w:1.8,op:.6,curve:true,cls:'cross'});
+
+  // cross-domain shared pattern at ingest level (both fail-loud validate)
+  const si=cardEls['soil:ingest'], mi=cardEls['mkt:ingest'];
+  let [sx1,sy1]=center(si,'right'); let [mx2,my2]=center(mi,'left');
+  line(sx1,sy1,mx2,my2,{stroke:'#c084fc',dash:'3 6',w:1.5,op:.4,cls:'cross'});
+}
+function relayout(){ requestAnimationFrame(drawLinks); }
+window.addEventListener('resize',relayout);
+window.addEventListener('load',relayout);
+relayout();
+
+/* ---------- drawer ---------- */
+const drawer=document.getElementById('drawer'), scrim=document.getElementById('scrim');
+function openDrawer(dom,tierId){
+  const c=CARDS[dom][tierId]; const tier=TIERS.find(t=>t.id===tierId);
+  document.getElementById('dlvl').textContent=`${tier.lvl} · ${tier.nm}`;
+  document.getElementById('dlvl').style.color=dom==='soil'?'var(--soil)':'var(--mkt)';
+  document.getElementById('dtitle').textContent=c.t;
+  document.getElementById('ddom').textContent=
+    dom==='soil'?'Regenerative Soil-Biology Venture':'Sandhills Market-Snapshot Pipeline';
+  document.getElementById('dbody').innerHTML=`
+    <div class="sec"><h4>Role</h4><div>${c.role}</div></div>
+    <div class="sec"><h4>Responsibility</h4><div>${c.resp}</div></div>
+    <div class="sec"><h4>Inputs → Outputs</h4>
+      ${c.inp.map(i=>`<div class="io"><span class="ar">in ▸</span><span>${i}</span></div>`).join('')}
+      ${c.outp.map(o=>`<div class="io"><span class="ar" style="color:var(--soil)">out ▸</span><span>${o}</span></div>`).join('')}
+    </div>
+    <div class="sec"><h4>Artifacts</h4><div class="arts2">${c.arts.map(a=>`<span class="chip2">${a}</span>`).join('')}</div></div>
+    <div class="sec"><h4>Orchestration</h4><div>${ORCH[dom]}</div></div>`;
+  drawer.classList.add('show'); scrim.classList.add('show');
+  // highlight path
+  Object.entries(cardEls).forEach(([k,el])=>{
+    el.classList.toggle('dim', !k.startsWith(dom+':'));
+    el.classList.toggle('active', k===`${dom}:${tierId}`);
+  });
+}
+function closeDrawer(){
+  drawer.classList.remove('show'); scrim.classList.remove('show');
+  Object.values(cardEls).forEach(el=>el.classList.remove('dim','active'));
+}
+document.getElementById('dclose').onclick=closeDrawer;
+scrim.onclick=closeDrawer;
+document.addEventListener('keydown',e=>{if(e.key==='Escape')closeDrawer();});
+</script>
+</body>
+</html>
