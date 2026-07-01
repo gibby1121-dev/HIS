@@ -1,0 +1,75 @@
+# Vault — source of truth. Google Drive folder owned by gibby1121@gmail.com.
+# Update IDs HERE; code and the advisor read from this file.
+#
+# Drive connector quirk: there is no in-place overwrite. Every write creates a
+# NEW file with a NEW id. When a write succeeds, replace the id below with the
+# new one and surface the old id for manual deletion.
+
+vault_folder_id: "1HE8eb-B2mdGfz8D6MEs8L3ZFZoV6nXz6"
+owner: "gibby1121@gmail.com"
+
+files:
+  master:
+    title: "Health_Stack_MASTER.md"
+    id: "1GVNF4pNvrP9yXkpk4HfNuplT5xJpHcmH"
+    purpose: "Combined health index — read this FIRST on every query."
+    load_priority: 1
+    # New version filed 2026-06-24 to reconcile the stale References id in the
+    # source index. Old id 1Acbu3DMnRtTC-OUA2cQQ1zwISK1sbrzL is stale — delete it.
+
+  references:
+    title: "Health_References.md"
+    id: "1ovGfVPL8OW0GdOeoRAuJKE8asR3gDlGY"
+    purpose: "Standing trusted creators/sources — one block per creator."
+    load_priority: 2
+    # Reconciled 2026-06-24: MASTER source index now points at the live id above.
+
+  labs:
+    title: "Labs_Log.md"
+    id: "1eDArfIJcwx5ciScereq-zk13-y6aKFKr"
+    purpose: "Lab history detail."
+
+  akkermansia:
+    title: "Akkermansia_Protocol.md"
+    id: "1HkCBGSf3JZMywge-JZxfZ1qUiXvHRUQp"
+    purpose: "Gut protocol detail."
+
+  ir_stack_map:
+    title: "Insulin_Resistance_Stack_Map.md"
+    id: "1U2Z9Nb7Gm35LiRYzD8qbN5ApQ-jpizHe"
+    purpose: "Insulin-resistance stack map detail."
+
+  morning_protocol:
+    title: "Morning_Protocol_v3_LOCKED"
+    id: null  # in Vault; resolve by scoped search if needed
+    purpose: "Locked morning SOP. _LOCKED = settled; propose, never silently edit."
+    locked: true
+
+  br549_notes:
+    title: "BR-549 notes (PDF)"
+    id: "1flWN6mXois-Sl1Jtam7bHi4uo354FXPP"
+    purpose: "Raw handwritten supplement notes — unstructured, needs verification."
+
+  notebooklm_pack:
+    title: "Health_Stack_NotebookLM_Pack.md"
+    id: null  # in Vault; glossary + starter questions + load steps
+    purpose: "Seeds retrieval prompts; optional query layer over the Vault."
+
+# Topic -> detail file to load alongside MASTER + References.
+topic_routing:
+  labs: labs
+  bloodwork: labs
+  cholesterol: labs
+  lipids: labs
+  hgb: labs
+  gut: akkermansia
+  akkermansia: akkermansia
+  microbiome: akkermansia
+  insulin: ir_stack_map
+  ir: ir_stack_map
+  glucose: ir_stack_map
+  a1c: ir_stack_map
+  cgm: ir_stack_map
+  morning: morning_protocol
+  supplement: br549_notes
+  peptide: br549_notes

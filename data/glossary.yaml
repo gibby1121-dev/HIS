@@ -1,0 +1,15 @@
+# Kent's shorthand. The normalizer expands these on input so the advisor never
+# misreads a term.
+terms:
+  D&G: "Kent's daily functional drink (Brain-Gut / 'dementia & gut')"
+  GKI: "Glucose-Ketone Index (a.k.a. Dr. Boz Ratio = glucose mg/dL / ketones mmol/L)"
+  Dr. Boz Ratio: "Glucose-Ketone Index (glucose mg/dL / ketones mmol/L)"
+  IR: "insulin resistance"
+  HOMA-IR: "insulin-resistance index from fasting glucose x insulin"
+  CGM: "continuous glucose monitor"
+  ketoCONTINUUM: "Dr. Boz's staged keto progression"
+  SMASH: "salmon, mackerel, anchovies, sardines, herring (canned-fish set)"
+  MB: "methylene blue"
+  TDEE: "total daily energy expenditure"
+  TRE: "time-restricted eating"
+  CAC: "coronary artery calcium score"
