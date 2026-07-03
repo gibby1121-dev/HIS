@@ -158,10 +158,12 @@ def merge_and_score(inv: "pd.DataFrame", web: "pd.DataFrame") -> "pd.DataFrame":
 
     merged["Views"] = merged["Views"].fillna(0)
 
-    # Buyer Engagement Score: avoid divide-by-zero on a 0-day listing.
-    dom = merged["DaysOnMarket"].replace(0, pd.NA)
-    merged["BuyerEngagementScore"] = (merged["Views"] / dom).round(2)
-    merged["BuyerEngagementScore"] = merged["BuyerEngagementScore"].fillna(0)
+    # Buyer Engagement Score: avoid divide-by-zero on a 0-day listing. The
+    # nullable Float64 dtype keeps the column numeric once 0 becomes NA, so
+    # round() stays safe (object-dtype NA has no __round__).
+    dom = merged["DaysOnMarket"].astype("Float64").replace(0, pd.NA)
+    score = (merged["Views"] / dom).astype("Float64").round(2)
+    merged["BuyerEngagementScore"] = score.fillna(0).astype(float)
 
     merged = merged.sort_values("BuyerEngagementScore", ascending=False)
     ok(f"Buyer Engagement Score computed for {len(merged)} items.")
