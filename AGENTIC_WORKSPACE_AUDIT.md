@@ -161,6 +161,37 @@ session ends, and permissions are minimal. No action needed.
 
 ---
 
+## Execution status (2026-07-03)
+
+Applied in this session:
+
+- ✅ Closed PR #3 (redundant, wrong base) and PR #7 (wrong base/title;
+  `knowledge-os` branch retained for re-targeting).
+- ✅ Closed PR #2 (Health Advisor) without merge; branch retained pending
+  migration.
+- ✅ Added `CLAUDE.md`, `.gitignore`, CI workflow, and a 10-case pytest suite;
+  untracked generated `notebooklm_source.md`; corrected README identity.
+- ✅ **Fixed a real bug the new tests caught:** a lot with `DaysOnMarket = 0`
+  crashed `merge_and_score` (object-dtype `pd.NA` has no `__round__`); now
+  handled via nullable `Float64`.
+- ✅ Re-checked PR #4: its diff against `main` is actually clean (only the two
+  screening-deck commits) — left open pending the soil-biology repo split.
+
+Blocked (needs owner action — the GitHub integration cannot create repos or
+delete branches):
+
+- ⛔ Create a **private** repo for Health Advisor; then the migration from
+  `claude/health-advisor-vault-nd18hf` can be completed and the branch deleted.
+- ⛔ Create a repo for the soil-biology venture (decks), then close PR #4 and
+  remove `investor-deck.md` from HIS.
+- ⛔ Delete remote branch `claude/inventory-webstats-merge-score-evuuow`
+  (content already merged via #5); enable "automatically delete head branches"
+  in repo settings.
+- ⛔ Update the GitHub repo description (currently "Reusable starter kit for
+  KGFO coworker plugins").
+- ⛔ Connector/plugin trims (claude.ai settings): disconnect Crypto.com,
+  Expedia, Uber; prune unused plugins; tighten Email-triage routine tools.
+
 ## Top 5 fixes, ranked
 
 1. **Move Health Advisor (PR #2) out of HIS into a private repo** — personal
