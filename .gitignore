@@ -1,0 +1,9 @@
+# Generated pipeline output — regenerate with `python3 market_snapshot.py`
+notebooklm_source.md
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
