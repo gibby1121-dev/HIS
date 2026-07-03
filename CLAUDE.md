@@ -12,8 +12,8 @@ and renders a NotebookLM-ready Markdown document.
 
 Do **not** add work for other ventures here. In particular:
 
-- **Soil-biology venture** (investor decks): `investor-deck.md` is legacy
-  content pending migration to its own repo. Do not extend it here.
+- **Soil-biology venture** (investor decks): migrated out to
+  `gibby1121-dev/soil-biology` on 2026-07-03. Do not re-add deck content here.
 - **Health Advisor / personal health material**: never belongs in this repo.
   (See closed PR #2 — its branch is pending migration to a private repo.)
 - Marketing/creator research, knowledge-OS visualizations, or anything not
