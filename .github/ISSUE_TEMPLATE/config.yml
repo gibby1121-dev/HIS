@@ -1,0 +1,7 @@
+# No blank issues: every unit of work must pass the value gate first.
+# This is the enforcement point for Issue-Driven Development in HIS.
+blank_issues_enabled: false
+contact_links:
+  - name: Repo rules & agent guidance
+    url: https://github.com/gibby1121-dev/his/blob/main/CLAUDE.md
+    about: Scope, PR rules, and what does NOT belong in this repo. Read before filing.

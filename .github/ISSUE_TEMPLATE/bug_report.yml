@@ -1,0 +1,39 @@
+name: "Bug report"
+description: "Something in the pipeline is broken or produces wrong output."
+title: "[Bug] <short description>"
+labels: ["bug", "needs-triage"]
+body:
+  - type: input
+    id: what
+    attributes:
+      label: "What's wrong?"
+      description: "One-line summary of the incorrect behavior."
+    validations:
+      required: true
+
+  - type: textarea
+    id: repro
+    attributes:
+      label: "Steps to reproduce"
+      description: "Commands run and inputs used (which CSVs, which flags)."
+      placeholder: |
+        1. python3 market_snapshot.py
+        2. Open notebooklm_source.md
+        3. ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: "Expected vs actual"
+    validations:
+      required: true
+
+  - type: textarea
+    id: env
+    attributes:
+      label: "Environment"
+      description: "Python version, OS, and anything unusual about the input data."
+    validations:
+      required: false

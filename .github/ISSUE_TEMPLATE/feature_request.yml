@@ -1,0 +1,101 @@
+name: "Feature / change request"
+description: "Propose new work. You must justify its value before any branch is created."
+title: "[Feature] <short description>"
+labels: ["needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        **Code is a liability, not an asset.** Every line here must be tested,
+        maintained, and secured forever. Before proposing work, filter it through
+        YAGNI (do I need this *today*?) and KISS (is this the simplest fix?).
+
+        If you can't clearly state the value below, this issue will be closed as
+        **Won't Do** — and no clutter enters the repo.
+
+  - type: input
+    id: problem
+    attributes:
+      label: "Problem"
+      description: "What concrete problem does this solve? Not the solution — the problem."
+      placeholder: "Buyer Engagement Score ignores lots with 0 days on market, so hot listings look cold."
+    validations:
+      required: true
+
+  - type: input
+    id: who
+    attributes:
+      label: "Who is this for?"
+      description: "Which user or workflow benefits? 'Might be useful to someone' is not an answer."
+      placeholder: "Auction analyst preparing the weekly Sandhills snapshot."
+    validations:
+      required: true
+
+  - type: textarea
+    id: value
+    attributes:
+      label: "Business value"
+      description: "What changes for the business if we build this? What breaks / stays worse if we don't?"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: yagni
+    attributes:
+      label: "YAGNI check"
+      description: "Is this needed now, or are you guessing about the future?"
+      options:
+        - "Needed NOW — there is a concrete, current use for it"
+        - "Speculative — 'we might want this someday' (default: do not build yet)"
+    validations:
+      required: true
+
+  - type: markdown
+    attributes:
+      value: |
+        ### ICE score
+        Rate each 1–10. Score = **Impact × Confidence × Ease**. Low totals expose
+        the hoarder trap: cool-sounding, unproven, and expensive to build.
+
+  - type: input
+    id: impact
+    attributes:
+      label: "Impact (1–10)"
+      description: "If this works, how much does it improve the project/users? 1 = barely noticed, 10 = game-changer."
+    validations:
+      required: true
+
+  - type: input
+    id: confidence
+    attributes:
+      label: "Confidence (1–10)"
+      description: "How sure are you it's wanted and will work? 1 = guessing, 10 = have data/proof."
+    validations:
+      required: true
+
+  - type: input
+    id: ease
+    attributes:
+      label: "Ease (1–10)"
+      description: "How easy to build? 1 = months of pain, 10 = an afternoon."
+    validations:
+      required: true
+
+  - type: textarea
+    id: mvp
+    attributes:
+      label: "Smallest viable version (MVP)"
+      description: "Describe the smallest, ugliest version that would deliver the value above. Ship that first."
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: scope
+    attributes:
+      label: "Scope gate"
+      description: "See CLAUDE.md. One venture per repo; one topic per PR."
+      options:
+        - label: "This is equipment-market tooling — NOT soil-biology, health, or marketing/creator work."
+          required: true
+        - label: "This is one topic, and I'll do the work on a `claude/*` branch that targets `main`, deleted after merge."
+          required: true
