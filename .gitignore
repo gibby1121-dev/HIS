@@ -1,6 +1,10 @@
 # Generated pipeline output — regenerate with `python3 market_snapshot.py`
 notebooklm_source.md
 
+# Task-log database — data, not source. Migrates to Hermes; never commit it.
+task_log.db
+*.db-journal
+
 # Python
 __pycache__/
 *.py[cod]
