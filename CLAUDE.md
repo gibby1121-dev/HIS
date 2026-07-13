@@ -22,13 +22,26 @@ Do **not** add work for other ventures here. In particular:
 If a task doesn't fit the equipment-tooling scope, say so instead of
 committing it here.
 
+## Repo map
+
+- `market_snapshot.py` — the pipeline (import-safe; all work runs under `main()`).
+- `MARKET_SNAPSHOT_README.md` — what the pipeline does and how to run it (user-facing).
+- `run_market_snapshot.sh` / `run_market_snapshot.bat` — one-shot runners (Unix / Windows) with env checks.
+- `tests/test_market_snapshot.py` — unit tests (run with `pytest`).
+- `inventory.csv`, `webstats.csv`, `market_trends.csv` — committed sample/template inputs.
+- `AGENTIC_WORKSPACE_AUDIT.md` — background audit notes; not part of the pipeline.
+
 ## How to run
 
+Targets **Python 3.11** (the version CI runs). `requirements.txt` pins only
+`pandas`; `pytest` is a dev-only dependency and must be installed separately.
+
 ```bash
-pip install -r requirements.txt
-python3 market_snapshot.py            # uses CSVs in the current directory
-./run_market_snapshot.sh              # one-shot runner with env checks
-pytest                                # unit tests
+pip install -r requirements.txt pytest   # pytest is NOT in requirements.txt
+python3 market_snapshot.py                # uses CSVs in the current directory
+./run_market_snapshot.sh                  # one-shot runner with env checks (Unix)
+run_market_snapshot.bat                   # same, on Windows
+pytest                                    # unit tests
 ```
 
 Inputs: `inventory.csv`, `webstats.csv`, `market_trends.csv` (sample/template
