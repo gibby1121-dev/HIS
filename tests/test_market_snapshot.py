@@ -93,6 +93,40 @@ class TestFlagHotCategories:
         assert ms.match_inventory_to_hot(scored, hot).empty
 
 
+class TestRetailComps:
+    def test_missing_file_is_skipped_not_fatal(self, tmp_path):
+        assert ms.load_retail_comps(tmp_path / "nope.csv") is None
+
+    def test_derives_sold_and_ratio_from_asking(self, tmp_path):
+        p = tmp_path / ms.RETAIL_COMPS_CSV
+        p.write_text(
+            "Model,AuctionPrice,RetailAsking\n"
+            "8285R,187750,159100\n"
+        )
+        comps = ms.load_retail_comps(p)
+        assert comps is not None
+        row = comps.iloc[0]
+        # Retail sold estimated at 90% of asking, ratio = auction / sold - 1.
+        assert row["RetailSoldEst"] == pytest.approx(143190.0)
+        assert row["AuctionVsRetailSoldPct"] == pytest.approx(31.1, abs=0.1)
+
+    def test_missing_required_column_is_skipped(self, tmp_path):
+        p = tmp_path / ms.RETAIL_COMPS_CSV
+        p.write_text("Model,AuctionPrice\n8285R,187750\n")
+        assert ms.load_retail_comps(p) is None
+
+    def test_tracker_section_renders_when_comps_present(self, tmp_path):
+        repo = Path(__file__).resolve().parent.parent
+        for name in (ms.INVENTORY_CSV, ms.WEBSTATS_CSV, ms.MARKET_TRENDS_CSV):
+            (tmp_path / name).write_text((repo / name).read_text())
+        (tmp_path / ms.RETAIL_COMPS_CSV).write_text(
+            "SaleDate,Make,Model,Year,Hours,AuctionPrice,RetailAsking\n"
+            "2026-08-05,John Deere,8285R,2013,3600,187750,159100\n"
+        )
+        text = ms.run(tmp_path).read_text()
+        assert "Auction → Retail Tracker" in text
+
+
 class TestLoadCsvValidation:
     def test_missing_file_raises_pipeline_error(self, tmp_path):
         with pytest.raises(ms.PipelineError, match="was not found"):

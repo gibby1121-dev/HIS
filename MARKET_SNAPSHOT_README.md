@@ -66,6 +66,13 @@ python3 market_snapshot.py /path/to/data   # point at another data folder
 - **market_trends.csv**: `AssetCategory, RegionalInventoryChangePct,
   RegionalPriceChangePct, AuctionValueChangePct` (plus optional `Region`).
 
+**Optional** — if present, `tractor_retail_comps.csv` adds an *Auction → Retail
+Tracker* section to the output. It needs `Model, AuctionPrice, RetailAsking`
+(plus optional `SaleDate, Make, Year, Hours`); `RetailSoldEst` (retail sold ≈
+90% of asking) and `AuctionVsRetailSoldPct` are derived if not supplied. This
+file is a fail-soft overlay: a missing or malformed comps file is skipped with a
+notice, never halting the snapshot.
+
 Swap the sample CSVs for your real exports — keep the column headers the same
 and the pipeline will pick them up automatically.
 

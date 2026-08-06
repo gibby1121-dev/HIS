@@ -43,6 +43,7 @@ except ImportError:  # pragma: no cover - environment guard
 INVENTORY_CSV = "inventory.csv"
 WEBSTATS_CSV = "webstats.csv"
 MARKET_TRENDS_CSV = "market_trends.csv"
+RETAIL_COMPS_CSV = "tractor_retail_comps.csv"  # optional auction-to-retail log
 OUTPUT_MD = "notebooklm_source.md"
 
 REQUIRED_INVENTORY_COLS = {
@@ -228,10 +229,116 @@ def match_inventory_to_hot(
 
 
 # --------------------------------------------------------------------------- #
+# Stage 3b - optional auction-to-retail comps                                  #
+# --------------------------------------------------------------------------- #
+# Columns the tracker renders when it can. AuctionVsRetailSoldPct is derived
+# from the hammer price vs. an estimated retail-sold number (retail asking
+# discounted ~10%), so auction can be tracked against real retail transaction
+# money rather than sticker asking.
+RETAIL_COMP_COLS = {"Model", "AuctionPrice", "RetailAsking"}
+RETAIL_SOLD_DISCOUNT = 0.90  # retail sold ~= 90% of asking (10% off asking)
+
+
+def load_retail_comps(path: Path) -> "pd.DataFrame | None":
+    """Load the optional auction-to-retail comp log.
+
+    This is a value-add overlay, not a required input, so it fails *soft*:
+    a missing or malformed file warns and is skipped rather than halting the
+    core snapshot. Any missing derived columns are computed from asking price.
+    """
+    if not path.exists():
+        return None
+    try:
+        comps = pd.read_csv(path)
+    except Exception as exc:
+        info(f"Skipping retail comps '{path.name}': could not parse ({exc}).")
+        return None
+    if comps.empty:
+        return None
+    missing = RETAIL_COMP_COLS - set(comps.columns)
+    if missing:
+        info(
+            f"Skipping retail comps '{path.name}': missing column(s) "
+            f"{', '.join(sorted(missing))}."
+        )
+        return None
+
+    comps = comps.copy()
+    for col in ("AuctionPrice", "RetailAsking"):
+        comps[col] = pd.to_numeric(comps[col], errors="coerce")
+
+    if "RetailSoldEst" in comps.columns:
+        comps["RetailSoldEst"] = pd.to_numeric(comps["RetailSoldEst"], errors="coerce")
+    else:
+        comps["RetailSoldEst"] = (comps["RetailAsking"] * RETAIL_SOLD_DISCOUNT).round(0)
+    comps["RetailSoldEst"] = comps["RetailSoldEst"].fillna(
+        (comps["RetailAsking"] * RETAIL_SOLD_DISCOUNT).round(0)
+    )
+
+    if "AuctionVsRetailSoldPct" not in comps.columns:
+        ratio = (comps["AuctionPrice"] / comps["RetailSoldEst"] - 1) * 100
+        comps["AuctionVsRetailSoldPct"] = ratio.round(1)
+    else:
+        comps["AuctionVsRetailSoldPct"] = pd.to_numeric(
+            comps["AuctionVsRetailSoldPct"], errors="coerce"
+        )
+    ok(f"Loaded {len(comps)} auction-to-retail comp(s).")
+    return comps
+
+
+# --------------------------------------------------------------------------- #
 # Stage 4 - render Markdown                                                     #
 # --------------------------------------------------------------------------- #
 def _money(value) -> str:
     return f"${value:,.0f}" if pd.notna(value) else "n/a"
+
+
+def _retail_tracker_lines(comps: "pd.DataFrame | None") -> list[str]:
+    """Render the optional Auction -> Retail Tracker section.
+
+    Returns an empty list when no comps are available, so the section simply
+    disappears rather than showing an empty shell.
+    """
+    if comps is None or comps.empty:
+        return []
+    lines: list[str] = []
+    lines.append("## 🚜 Auction → Retail Tracker")
+    lines.append("")
+    lines.append(
+        "Each recorded auction result against its retail comp. **Retail sold** "
+        "is estimated at ~90% of asking (a 10% discount); the final column is "
+        "the hammer price versus that estimated retail-sold number. As auction "
+        "climbs toward or past 0%, demand on that class is strengthening."
+    )
+    lines.append("")
+    lines.append(
+        "| Sale Date | Unit | Hours | Auction | Retail Asking | "
+        "Retail Sold (est.) | Auction vs. Retail-Sold |"
+    )
+    lines.append("|---|---|---|---|---|---|---|")
+    for _, r in comps.iterrows():
+        unit = " ".join(
+            str(r[c])
+            for c in ("Year", "Make", "Model")
+            if c in r and pd.notna(r[c])
+        ).strip() or str(r.get("Model", "—"))
+        hours = f"{int(r['Hours']):,}" if "Hours" in r and pd.notna(r["Hours"]) else "—"
+        pct = r.get("AuctionVsRetailSoldPct")
+        pct_str = f"{pct:+.1f}%" if pd.notna(pct) else "—"
+        lines.append(
+            f"| {r.get('SaleDate','—')} | {unit} | {hours} | "
+            f"{_money(r.get('AuctionPrice'))} | {_money(r.get('RetailAsking'))} | "
+            f"{_money(r.get('RetailSoldEst'))} | {pct_str} |"
+        )
+    lines.append("")
+    valid = comps["AuctionVsRetailSoldPct"].dropna()
+    if not valid.empty:
+        lines.append(
+            f"- Average auction-vs-retail-sold across {len(valid)} comp(s): "
+            f"**{valid.mean():+.1f}%**"
+        )
+        lines.append("")
+    return lines
 
 
 def build_markdown(
@@ -239,6 +346,7 @@ def build_markdown(
     hot: "pd.DataFrame",
     hot_inventory: "pd.DataFrame",
     generated_on: str,
+    retail_comps: "pd.DataFrame | None" = None,
 ) -> str:
     lines: list[str] = []
 
@@ -313,6 +421,9 @@ def build_markdown(
                 f"{r['AuctionValueChangePct']:+.1f} |"
             )
         lines.append("")
+
+    # ---- Auction -> Retail tracker (optional overlay) -------------------
+    lines.extend(_retail_tracker_lines(retail_comps))
 
     # ---- Full merged dataset --------------------------------------------
     lines.append("## Full Lot Inventory — Merged & Scored")
@@ -402,9 +513,12 @@ def run(base_dir: Path) -> Path:
     step("Stage 3/4  Cross-referencing regional market trends")
     hot = flag_hot_categories(trends_raw)
     hot_inventory = match_inventory_to_hot(scored, hot)
+    retail_comps = load_retail_comps(base_dir / RETAIL_COMPS_CSV)
 
     step("Stage 4/4  Rendering NotebookLM source document")
-    markdown = build_markdown(scored, hot, hot_inventory, generated_on)
+    markdown = build_markdown(
+        scored, hot, hot_inventory, generated_on, retail_comps
+    )
     out_path = base_dir / OUTPUT_MD
     out_path.write_text(markdown, encoding="utf-8")
     ok(f"Wrote {out_path.name} ({len(markdown):,} characters).")

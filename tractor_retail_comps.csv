@@ -1,0 +1,5 @@
+SaleDate,AuctionCo,Location,Category,Make,Model,Year,Hours,AuctionPrice,RetailAsking,RetailSoldEst,AuctionVsRetailSoldPct,Notes
+2026-08-05,BigIron,Earlham IA,Tractors,John Deere,8R 410,2023,496,431250,478000,430200,0.2,2nd-highest auction price ever 8R 410 w/ 300+ hrs; retail-sold est @ 90% of asking
+2026-08-05,BigIron,Earlham IA,Tractors,John Deere,6145R,2022,798,169050,193000,173700,-2.7,With loader; 2nd-highest auction price ever 6145R; retail-sold est @ 90% of asking
+2026-08-05,BigIron,Earlham IA,Tractors,John Deere,8360R,2013,2822,196250,215000,193500,1.4,Retail-sold est @ 90% of asking
+2026-08-05,BigIron,Earlham IA,Tractors,John Deere,8285R,2013,3600,187750,159100,143190,31.1,Auction over comparable retail; spec-adjusted (Bunnell unit likely better optioned than plain PS comp)
