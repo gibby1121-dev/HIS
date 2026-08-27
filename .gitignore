@@ -1,6 +1,10 @@
 # Generated pipeline output — regenerate with `python3 market_snapshot.py`
 notebooklm_source.md
 
+# Generated consignee contact sheet — carries buyer contact details,
+# regenerate with `python3 consignee_buyer_contacts.py REPORT.xlsx`
+consignee_buyer_contacts.xlsx
+
 # Python
 __pycache__/
 *.py[cod]
