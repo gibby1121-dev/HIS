@@ -156,3 +156,29 @@ class TestEndToEnd:
         with pytest.raises(SystemExit) as excinfo:
             cbc.main([str(source), "-o", str(tmp_path / "out.xlsx")])
         assert excinfo.value.code == 2
+
+
+class TestReportVariants:
+    """Both exports seen in the wild carry the columns we depend on.
+
+    The 'AT/PreAT Auction Summary Report' has 'Sold on Pre-AuctionTime'; the
+    plain 'Auction Summary Report' drops it and adds ListingID / Lot Number.
+    Neither difference touches the premium math or the buyer contact fields.
+    """
+
+    def test_plain_auction_summary_variant_is_accepted(self, tmp_path):
+        details = _details().drop(columns=["Sold on Pre-AuctionTime"])
+        details.insert(0, "ListingID", [9001, 9002])
+        details.insert(1, "Lot Number", [12, 47])
+
+        source = tmp_path / "variant.xlsx"
+        output = tmp_path / "contacts.xlsx"
+        with pd.ExcelWriter(source, engine="openpyxl") as writer:
+            details.to_excel(
+                writer, sheet_name="Details", index=False, startrow=cbc.HEADER_ROW
+            )
+
+        assert cbc.main([str(source), "-o", str(output)]) == 0
+        sheet = pd.read_excel(output)
+        assert sorted(sheet[cbc.NET_COL]) == [80_000.00, 150_000.00]
+        assert cbc.PREMIUM_COL not in sheet.columns
