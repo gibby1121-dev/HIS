@@ -7,6 +7,7 @@ import pytest
 
 import aeo_listing
 import listing_audit
+import merchant_feed
 
 
 def _unit(**overrides) -> dict:
@@ -261,3 +262,126 @@ def test_markdown_names_the_unpublished_trust_fields():
     unit = _frame(_unit()).iloc[0]
     page = aeo_listing.render_markdown(unit, aeo_listing.build_faq(unit))
     assert "lienStatus" in page and "inspectionReport" in page
+
+
+# --------------------------------------------------------------------------- #
+# Merchant Center feed
+# --------------------------------------------------------------------------- #
+
+def test_feed_row_has_every_required_column():
+    row, reason = merchant_feed.build_row(
+        _frame(_unit()).iloc[0], "https://example.com/eq"
+    )
+    assert reason == ""
+    assert set(row) == set(merchant_feed.FEED_COLUMNS)
+
+
+def test_feed_declares_no_identifier_and_never_invents_a_gtin():
+    row, _ = merchant_feed.build_row(
+        _frame(_unit()).iloc[0], "https://example.com/eq"
+    )
+    assert row["identifier_exists"] == "no"
+    assert "gtin" not in row
+    assert row["condition"] == "used"
+
+
+def test_feed_links_derive_from_the_base_url_and_serial():
+    row, _ = merchant_feed.build_row(
+        _frame(_unit()).iloc[0], "https://example.com/eq/"
+    )
+    assert row["link"] == "https://example.com/eq/TEST123"
+    assert row["image_link"].startswith("https://example.com/eq/TEST123/")
+
+
+def test_feed_price_carries_a_currency():
+    row, _ = merchant_feed.build_row(
+        _frame(_unit()).iloc[0], "https://example.com/eq"
+    )
+    assert row["price"] == "61500.00 USD"
+
+
+@pytest.mark.parametrize("override,fragment", [
+    ({"VINSerialNumber": ""}, "serial"),
+    ({"SaleListPrice": ""}, "price"),
+    ({"PictureCount": 0}, "photos"),
+    ({"Year": "", "Manufacturer": "", "Model": ""}, "title"),
+])
+def test_feed_skips_unlistable_units_with_a_reason(override, fragment):
+    row, reason = merchant_feed.build_row(
+        _frame(_unit(**override)).iloc[0], "https://example.com/eq"
+    )
+    assert row is None
+    assert fragment in reason
+
+
+def test_blank_seller_description_is_backfilled_from_specs():
+    """A unit with no written description is still listable: hours, location
+    and serial come from the export, so nothing is invented and the unit stays
+    in the feed instead of being dropped."""
+    row, reason = merchant_feed.build_row(
+        _frame(_unit(Description="")).iloc[0], "https://example.com/eq"
+    )
+    assert reason == ""
+    assert "4,137 hours" in row["description"]
+    assert "TEST123" in row["description"]
+
+
+def test_unit_with_neither_description_nor_specs_is_skipped():
+    row, reason = merchant_feed.build_row(
+        _frame(_unit(Description="", hours="", mileage="", LocationCity="",
+                     LocationState="", VINSerialNumber="X1")).iloc[0],
+        "https://example.com/eq",
+    )
+    assert row is None
+    assert "description" in reason
+
+
+def test_trucks_map_to_the_vehicle_taxonomy():
+    row, _ = merchant_feed.build_row(
+        _frame(_unit(InventoryType="Trucks")).iloc[0], "https://example.com/eq"
+    )
+    assert "Vehicles" in row["google_product_category"]
+
+
+def test_other_types_default_to_heavy_machinery():
+    row, _ = merchant_feed.build_row(
+        _frame(_unit(InventoryType="Agricultural_Equipment")).iloc[0],
+        "https://example.com/eq",
+    )
+    assert row["google_product_category"] == merchant_feed.DEFAULT_CATEGORY
+
+
+def test_description_appends_specs_missing_from_the_text():
+    row, _ = merchant_feed.build_row(
+        _frame(_unit(Description="Good runner")).iloc[0], "https://example.com/eq"
+    )
+    assert "4,137 hours" in row["description"]
+    assert "La Porte City" in row["description"]
+
+
+def test_description_does_not_duplicate_specs_already_stated():
+    row, _ = merchant_feed.build_row(
+        _frame(_unit(Description="4137 hours, runs good")).iloc[0],
+        "https://example.com/eq",
+    )
+    assert row["description"].lower().count("hour") == 1
+
+
+def test_build_feed_tallies_skip_reasons():
+    rows, skipped = merchant_feed.build_feed(
+        _frame(_unit(), _unit(VINSerialNumber="", Description="x")),
+        "https://example.com/eq",
+    )
+    assert len(rows) == 1
+    assert sum(skipped.values()) == 1
+
+
+def test_write_tsv_round_trips(tmp_path):
+    rows, _ = merchant_feed.build_feed(
+        _frame(_unit()), "https://example.com/eq"
+    )
+    out = tmp_path / "feed.tsv"
+    merchant_feed.write_tsv(rows, out)
+    written = out.read_text(encoding="utf-8").splitlines()
+    assert written[0].split("\t") == list(merchant_feed.FEED_COLUMNS)
+    assert len(written) == 2
