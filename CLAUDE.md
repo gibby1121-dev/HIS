@@ -28,12 +28,15 @@ committing it here.
 pip install -r requirements.txt
 python3 market_snapshot.py            # uses CSVs in the current directory
 ./run_market_snapshot.sh              # one-shot runner with env checks
+python3 marketplace_pack.py --inventory X.csv --photos DIR   # Marketplace packs
 pytest                                # unit tests
 ```
 
 Inputs: `inventory.csv`, `webstats.csv`, `market_trends.csv` (sample/template
 data is committed). Output: `notebooklm_source.md` — **generated, git-ignored,
-never commit it**.
+never commit it**. Marketplace packs go to `marketplace_queue/` (also
+generated and git-ignored). Never feed TractorHouse (watermarked) photos into
+the pack builder; use crew intake photos only.
 
 ## Rules for agent sessions
 
