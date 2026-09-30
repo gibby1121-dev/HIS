@@ -16,8 +16,10 @@ Stages
 3. Cross-reference inventory against regional market trends and flag
    "hot-selling" categories: regional inventory dropping while pricing or
    auction values are rising.
+   Then assign each lot one retail marketing play (Hold & Feature, Fix the
+   Listing, Move to Auction, Reprice / Boost, Steady).
 4. Render notebooklm_source.md with a "Hot-Selling Action Items" section
-   pinned to the top, followed by the full merged dataset.
+   pinned to the top, the retail marketing plays, and the full merged dataset.
 
 The module is import-safe (everything runs under ``main()``) so the bundling
 shell script can drive it and surface clean exit codes.
@@ -58,6 +60,39 @@ REQUIRED_TREND_COLS = {
     "RegionalInventoryChangePct",
     "RegionalPriceChangePct",
     "AuctionValueChangePct",
+}
+
+
+# Retail marketing play thresholds (days on market).
+STALE_DAYS = 60          # listing is going stale -> reprice or boost exposure
+AUCTION_DAYS = 90        # retail isn't working -> consider the next auction
+
+PLAY_ORDER = [
+    "Hold & Feature",
+    "Fix the Listing",
+    "Move to Auction",
+    "Reprice / Boost",
+    "Steady",
+]
+PLAY_GUIDANCE = {
+    "Hold & Feature": (
+        "Supply is tightening and buyers are engaged. Hold price, buy featured "
+        "placement, and answer every inquiry the same day."
+    ),
+    "Fix the Listing": (
+        "Plenty of views but few inquiries. Refresh photos, add a walkaround "
+        "video, hours, and service history, and make the price and call to "
+        "action obvious."
+    ),
+    "Move to Auction": (
+        "Long on the lot outside a hot segment. Offer the consignor the next "
+        "Mid-Iowa sale instead of more retail markdowns."
+    ),
+    "Reprice / Boost": (
+        "Going stale with below-average engagement. Step the price toward "
+        "auction value or push it through an email blast and social posts."
+    ),
+    "Steady": "Performing normally. Keep the listing current; no action needed.",
 }
 
 
@@ -227,6 +262,72 @@ def match_inventory_to_hot(
     return match
 
 
+def assign_marketing_plays(
+    scored: "pd.DataFrame", hot_inventory: "pd.DataFrame"
+) -> "pd.DataFrame":
+    """Give every lot exactly one retail marketing play.
+
+    Rules are checked in priority order (first match wins):
+
+    1. Hold & Feature  - in a hot segment and engagement at/above median.
+    2. Fix the Listing - views at/above median but inquiry rate below median
+                         (only when webstats carries an ``Inquiries`` column).
+    3. Move to Auction - DaysOnMarket >= AUCTION_DAYS and not in a hot segment.
+    4. Reprice / Boost - DaysOnMarket >= STALE_DAYS and engagement below median.
+    5. Steady          - everything else.
+    """
+    info("Assigning retail marketing plays ...")
+    plays = scored.copy()
+    hot_stock = set(hot_inventory["StockNumber"]) if not hot_inventory.empty else set()
+    in_hot = plays["StockNumber"].isin(hot_stock)
+
+    engagement = plays["BuyerEngagementScore"]
+    high_engagement = engagement >= engagement.median()
+    dom = plays["DaysOnMarket"].fillna(0)
+
+    if "Inquiries" in plays.columns:
+        inquiries = pd.to_numeric(plays["Inquiries"], errors="coerce")
+        views = plays["Views"].replace(0, pd.NA)
+        rate = (inquiries / views).astype("Float64")
+        plays["InquiryRatePct"] = (rate * 100).round(2).astype(float)
+        weak_conversion = (plays["Views"] >= plays["Views"].median()) & (
+            rate < rate.median()
+        ).fillna(False).astype(bool)
+    else:
+        plays["InquiryRatePct"] = float("nan")
+        weak_conversion = pd.Series(False, index=plays.index)
+
+    plays["ListPremiumPct"] = (
+        (plays["ListPrice"] - plays["AuctionValue"])
+        / plays["AuctionValue"].replace(0, pd.NA)
+        * 100
+    ).astype("Float64").round(1).astype(float)
+
+    play = pd.Series("Steady", index=plays.index)
+    rules = [
+        ("Reprice / Boost", (dom >= STALE_DAYS) & ~high_engagement),
+        ("Move to Auction", (dom >= AUCTION_DAYS) & ~in_hot),
+        ("Fix the Listing", weak_conversion),
+        ("Hold & Feature", in_hot & high_engagement),
+    ]
+    # Apply lowest priority first so higher-priority rules overwrite.
+    for name, mask in rules:
+        play[mask] = name
+    plays["MarketingPlay"] = play
+
+    plays["_order"] = plays["MarketingPlay"].map(PLAY_ORDER.index)
+    plays = plays.sort_values(
+        ["_order", "BuyerEngagementScore"], ascending=[True, False]
+    ).drop(columns="_order")
+    counts = plays["MarketingPlay"].value_counts()
+    ok(
+        "Plays: "
+        + ", ".join(f"{name} {counts.get(name, 0)}" for name in PLAY_ORDER)
+        + "."
+    )
+    return plays
+
+
 # --------------------------------------------------------------------------- #
 # Stage 4 - render Markdown                                                     #
 # --------------------------------------------------------------------------- #
@@ -239,6 +340,7 @@ def build_markdown(
     hot: "pd.DataFrame",
     hot_inventory: "pd.DataFrame",
     generated_on: str,
+    plays: "pd.DataFrame | None" = None,
 ) -> str:
     lines: list[str] = []
 
@@ -314,6 +416,50 @@ def build_markdown(
             )
         lines.append("")
 
+    # ---- Retail marketing plays -----------------------------------------
+    if plays is not None and not plays.empty:
+        lines.append("## 📣 Retail Marketing Plays")
+        lines.append("")
+        lines.append(
+            "One recommended marketing action per retail lot, driven by web "
+            "engagement, inquiry conversion, days on market, and regional trend."
+        )
+        lines.append("")
+        for name in PLAY_ORDER:
+            group = plays[plays["MarketingPlay"] == name]
+            if group.empty:
+                continue
+            lines.append(f"### {name} ({len(group)})")
+            lines.append("")
+            lines.append(f"_{PLAY_GUIDANCE[name]}_")
+            lines.append("")
+            lines.append(
+                "| Stock # | Category | Make/Model | List Price | "
+                "Premium vs Auction | Days on Market | Engagement | Inquiry Rate |"
+            )
+            lines.append("|---|---|---|---|---|---|---|---|")
+            for _, r in group.iterrows():
+                make_model = " ".join(
+                    str(r[c]) for c in ("Make", "Model") if c in r and pd.notna(r[c])
+                ).strip() or "—"
+                dom = int(r["DaysOnMarket"]) if pd.notna(r["DaysOnMarket"]) else "—"
+                premium = (
+                    f"{r['ListPremiumPct']:+.1f}%"
+                    if pd.notna(r["ListPremiumPct"])
+                    else "n/a"
+                )
+                rate = (
+                    f"{r['InquiryRatePct']:.2f}%"
+                    if pd.notna(r["InquiryRatePct"])
+                    else "n/a"
+                )
+                lines.append(
+                    f"| {r.get('StockNumber','—')} | {r.get('AssetCategory','—')} | "
+                    f"{make_model} | {_money(r.get('ListPrice'))} | {premium} | "
+                    f"{dom} | {r.get('BuyerEngagementScore','—')} | {rate} |"
+                )
+            lines.append("")
+
     # ---- Full merged dataset --------------------------------------------
     lines.append("## Full Lot Inventory — Merged & Scored")
     lines.append("")
@@ -358,6 +504,12 @@ def build_markdown(
             f"**{top.get('BuyerEngagementScore','—')}** views/day."
         )
     lines.append(f"- Lots in hot-selling segments: **{len(hot_inventory)}**")
+    if plays is not None and not plays.empty:
+        counts = plays["MarketingPlay"].value_counts()
+        lines.append(
+            "- Retail marketing plays: "
+            + ", ".join(f"{name} **{counts.get(name, 0)}**" for name in PLAY_ORDER)
+        )
     lines.append("")
 
     return "\n".join(lines)
@@ -402,9 +554,10 @@ def run(base_dir: Path) -> Path:
     step("Stage 3/4  Cross-referencing regional market trends")
     hot = flag_hot_categories(trends_raw)
     hot_inventory = match_inventory_to_hot(scored, hot)
+    plays = assign_marketing_plays(scored, hot_inventory)
 
     step("Stage 4/4  Rendering NotebookLM source document")
-    markdown = build_markdown(scored, hot, hot_inventory, generated_on)
+    markdown = build_markdown(scored, hot, hot_inventory, generated_on, plays)
     out_path = base_dir / OUTPUT_MD
     out_path.write_text(markdown, encoding="utf-8")
     ok(f"Wrote {out_path.name} ({len(markdown):,} characters).")

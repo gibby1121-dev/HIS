@@ -120,3 +120,55 @@ class TestEndToEnd:
         text = out.read_text()
         assert "# Sandhills Market Snapshot" in text
         assert "Hot-Selling Action Items" in text
+        assert "Retail Marketing Plays" in text
+
+
+class TestAssignMarketingPlays:
+    def _scored(self):
+        inv = pd.DataFrame(
+            {
+                "StockNumber": ["HOT", "LEAK", "OLD", "STALE", "OK"],
+                "AssetCategory": ["Skid", "Dozer", "Dozer", "Loader", "Loader"],
+                "ListPrice": [110, 110, 110, 110, 110],
+                "AuctionValue": [100, 100, 100, 100, 100],
+                "DaysOnMarket": [10, 10, 120, 70, 20],
+            }
+        )
+        web = pd.DataFrame(
+            {
+                "StockNumber": ["HOT", "LEAK", "OLD", "STALE", "OK"],
+                "Views": [2000, 3000, 500, 400, 600],
+                "Inquiries": [40, 5, 10, 8, 12],
+            }
+        )
+        return ms.merge_and_score(ms.clean_inventory(inv), ms.clean_webstats(web))
+
+    def _plays(self, hot_stock=("HOT",)):
+        scored = self._scored()
+        hot_inv = scored[scored["StockNumber"].isin(hot_stock)]
+        return ms.assign_marketing_plays(scored, hot_inv).set_index("StockNumber")
+
+    def test_each_rule_assigns_expected_play(self):
+        plays = self._plays()["MarketingPlay"]
+        assert plays["HOT"] == "Hold & Feature"
+        assert plays["LEAK"] == "Fix the Listing"
+        assert plays["OLD"] == "Move to Auction"
+        assert plays["STALE"] == "Reprice / Boost"
+        assert plays["OK"] == "Steady"
+
+    def test_hot_segment_is_never_sent_to_auction(self):
+        plays = self._plays(hot_stock=("OLD",))["MarketingPlay"]
+        assert plays["OLD"] != "Move to Auction"
+
+    def test_list_premium_and_inquiry_rate(self):
+        plays = self._plays()
+        assert plays.loc["HOT", "ListPremiumPct"] == pytest.approx(10.0)
+        assert plays.loc["HOT", "InquiryRatePct"] == pytest.approx(2.0)
+
+    def test_works_without_inquiries_column(self):
+        scored = ms.merge_and_score(
+            ms.clean_inventory(_inventory()), ms.clean_webstats(_webstats())
+        )
+        plays = ms.assign_marketing_plays(scored, scored.iloc[0:0])
+        assert set(plays["MarketingPlay"]) <= set(ms.PLAY_ORDER)
+        assert "Fix the Listing" not in set(plays["MarketingPlay"])
