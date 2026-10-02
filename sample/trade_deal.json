@@ -1,0 +1,25 @@
+{
+  "_note": "SYNTHETIC example deal for demos and tests.",
+  "as_of": "2026-09-30",
+  "operator": {"name": "Sample Operator", "state": "IA", "borrow_apr": 7.0},
+  "trade_unit": {
+    "category": "4WD Tractor",
+    "make": "John Deere",
+    "model": "9RX 640",
+    "year": 2021,
+    "hours": 2050,
+    "serial": "SAMPLE000000",
+    "config": "36in tracks, 1000 PTO, StarFire 7000 + G5 display",
+    "sandhills_vip": {"auction": 392000, "market": 468000}
+  },
+  "dealer_quote": {
+    "new_unit": "2026 John Deere 9RX 640",
+    "list_price": 905000,
+    "quoted_price_with_trade": 812000,
+    "trade_allowance": 455000,
+    "cash_price_no_trade": null,
+    "trade_payoff": 0,
+    "other_charges": [{"label": "Freight and PDI", "amount": 4800}],
+    "financing": {"apr": 0.0, "term_months": 60, "payments_per_year": 1, "cash_in_lieu": null}
+  }
+}

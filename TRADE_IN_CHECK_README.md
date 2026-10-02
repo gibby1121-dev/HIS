@@ -1,98 +1,106 @@
 # Trade-In Check
 
-The first HIS / MIA product for owner-sellers of large row-crop iron (4WD and
-high-HP row-crop tractors, combines, planters, self-propelled sprayers, grain
-carts). It targets the **trade-in squeeze**: the dealer folds the trade value
-into the new-unit deal, so the operator can't see what the trade is worth on the
-open market.
+HIS / Mid-Iowa Auction's first product for owner-sellers of large row-crop
+iron. It takes the dealer's bundled trade-in quote and works out four things:
+- what the dealer is **really** paying for the trade;
+- what the unit **actually** brings at auction, measured against MIA's own results;
+- whether the operator should trade or consign;
+- what to say to the dealer.
 
-## What it does
+The research behind every rule and number is in [`docs/RESEARCH.md`](docs/RESEARCH.md).
 
-1. **Unbundles the dealer deal.** A large trade allowance can be paid for by a
-   smaller discount on the new unit. The real trade value is:
+## What it does that an operator can't do alone
 
-   ```
-   implied trade value = trade allowance − (quoted price with trade − cash price without trade)
-   ```
-
-   If the operator has the dealer's cash (no-trade) price, the tool uses it.
-   If not, it estimates the cash price from an assumed dealer discount, flags
-   the number as estimated, and tells the operator to get the cash price in
-   writing.
-2. **Values the trade on the open market** from comparable sales in
-   `comps.csv`. Each comp is adjusted to the trade's model year and hours, then
-   weighted by similarity (make/model, year, hours) and recency. The result is
-   a weighted median with a P25–P75 range and a High / Medium / Low confidence
-   grade. When there are few close comps, the range is widened.
-3. **Nets out the cost of selling it yourself**: commission, transport, prep,
-   and the carrying cost while the unit sells.
-4. **Compares the two routes.** The **trade-in spread** is net open-market
-   proceeds minus the implied trade value: roughly what the operator pays for
-   the convenience of trading. The report gives a verdict
-   (🔴 squeezed / 🟡 close / 🟢 strong), two break-even counter-offers (a higher
-   allowance, or a lower price at the same allowance), and the questions to ask
-   the dealer.
-
-The output, `trade_in_report.md`, is a seller-facing summary. You can read it as
-it is or load it into NotebookLM or Claude as a source. It is a **decision aid,
-not an appraisal and not tax advice**. Tax effects such as depreciation
-recapture are not modelled, and the report tells the operator to take it to
-their CPA.
+1. **Reads the dealer's quote itself.** An operator photographs the worksheet or forwards
+   the PDF. Claude extracts the fields, and **every number has to come with the
+   exact text it was read from**. A number that doesn't appear in that text is
+   dropped. If the quote's arithmetic doesn't add up, that becomes a question for
+   the operator rather than a silent fix. (`tradein/intake.py`)
+2. **Separates out what the dealer is withholding.** The real trade value is the
+   allowance minus the discount a no-trade buyer would have gotten. When the
+   operator doesn't have the no-trade cash price, nothing is assumed. Instead the
+   tool solves for the **break-even no-trade price** and gives the operator one
+   question to ask the dealer.
+3. **Puts a floor under the over-allowance.** A dealer can't pay more for a trade
+   than its expected resale value less margin, reconditioning and floorplan. Any
+   allowance above that ceiling has to be coming back out of the new-unit price.
+4. **Values the 0% financing as well.** At the operator's own borrowing rate, the
+   subsidy is worth a dollar amount. Any cash-in-lieu offer below that amount is
+   worse. Lenders such as AgDirect let an operator take the cash *and* finance it.
+5. **Uses hammer prices only.** Comparable sales must state their price basis.
+   Buyer's premiums are stripped out, including capped ones. Asking prices are
+   never used to set a value; they're shown only to explain why "it's listed for
+   $X online" is not what the unit brings. Sandhills asking prices ran 31–40% above
+   auction in 2026.
+6. **Calibrates against MIA's own sale results.** The Sandhills VIP+ auction value
+   is scaled by how MIA hammer prices have actually landed against Sandhills
+   estimates in that category. The calibration validates itself: it's used only
+   for categories where it beats raw Sandhills on lots held out of the fit.
+7. **Measures its own value ranges.** The comps range is sized from leave-one-out
+   errors, so a statement like "80% of held-out sales fell within ±X%" is measured
+   rather than assumed.
+8. **Gives the CPA facts and questions, never advice.** Since 2018, a trade is a
+   sale plus a purchase. The report shows the amount realized and the new-unit
+   basis under each route, and flags the issues to raise with the CPA:
+   over-allowance and self-employment tax, bonus depreciation and §179,
+   December vs. January timing, and §453(i). For South Dakota operators it also
+   counts the excise saved by trading.
 
 ## Run it
 
 ```bash
 pip install -r requirements.txt
-python3 trade_in_check.py                  # uses trade_deal.json + comps.csv here
-python3 trade_in_check.py /path/to/folder  # inputs in another folder
+python3 trade_in_check.py sample                  # synthetic demo
+python3 trade_in_check.py FOLDER                  # FOLDER/trade_deal.json (+ comps.csv, mia_results/)
+python3 trade_in_check.py FOLDER --quote worksheet.jpg --notes "2021 9RX 640, 2,050 hrs, 36in tracks"
+python3 -m tradein.backtest FOLDER                # measure accuracy on your data first
 ```
 
-The exit code is 0 on success. It is 1 when an input is missing or malformed,
-and the error names the problem.
+It writes two files:
+- `trade_in_report.md` for the operator.
+- `mia_desk_sheet.md` for internal use: the consignment pitch, a reserve ceiling, value anchors, and an unverified-items checklist.
 
-## Inputs
+Exit codes: 0 means OK; 1 means bad input; 2 means the quote needs answers first.
 
-### `trade_deal.json` — one dealer quote
+To read a quote, `--quote` needs Anthropic API credentials (`ANTHROPIC_API_KEY`
+or an `ant auth login` profile). It uses `claude-opus-5-5` with structured
+output. Server-side refusal fallback (`fallbacks: "default"`) is enabled.
 
-| Field | Required | Notes |
+## Inputs (all in one folder)
+
+| File | Required | What it is |
 |---|---|---|
-| `trade_unit.category` | yes | Must match `Category` in comps (e.g. `4WD Tractor`). |
-| `trade_unit.make`, `.model`, `.year`, `.hours` | yes | |
-| `trade_unit.description` | no | Configuration notes; printed in the report. |
-| `dealer_quote.quoted_price_with_trade` | yes | New-unit price on the trade deal. |
-| `dealer_quote.trade_allowance` | yes | |
-| `dealer_quote.cash_price_no_trade` | no | Use it whenever you have it. `null` means estimate it. |
-| `dealer_quote.new_unit` | no | Label for the new unit. |
-| `as_of` | no | `YYYY-MM-DD`; comps dated after this are ignored. Defaults to today. |
-| `operator` | no | Name printed on the report. |
-| `assumptions.*` | no | Overrides the defaults below. Unknown keys are rejected. |
+| `trade_deal.json` | yes | The quote and trade unit. See `sample/trade_deal.json`. Written for you by `--quote`. |
+| `comps.csv` | one of these two | Realized sales. Required columns: `Make, Model, Year, Hours, Price, PriceBasis, SaleDate`. `PriceBasis` is one of `hammer`, `with_bp` (also give `BuyerPremiumPct`, and `BuyerPremiumCap` if the premium is capped) or `asking`. Optional columns: `Category, Source, Region, Config`. |
+| `trade_unit.sandhills_vip` | one of these two | `{"auction": …, "market": …}` from the Sandhills dealer account (VIP+). |
+| `mia_results/*Auction Summary*.xlsx` | optional | MIA's post-sale exports. These turn on calibration. |
 
-Default assumptions are listed in `DEFAULT_ASSUMPTIONS` in
-`trade_in_check.py`, and every value used is printed in the report:
-dealer cash discount 8%, commission 5%, transport $2,500, prep $1,500, 45 days
-to sell at an 8% cost of money, comp adjustments of 7% per model year and 4% per
-1,000 hours, a recency half-life of 180 days, and a maximum comp age of 730
-days. **These are placeholders.** Replace them with MIA's actual commission
-schedule and observed dealer discounts before you show results to customers.
+`config/mia_terms.json` holds MIA's seller terms. **The commission bracket
+breakpoints, settlement days, days to next sale and prep cost are placeholders.**
+The published commission range is 3–6%. Every report lists the unverified
+items until you replace them. `config/market_facts.json` holds the dated,
+sourced market context.
 
-### `comps.csv` — comparable sales
+## Before an operator sees a number
 
-Required columns: `Category, Make, Model, Year, Hours, SalePrice, SaleDate`.
-Optional columns: `SaleType, Region, Notes`.
+1. Replace `config/mia_terms.json` placeholders with MIA's real schedule and sale calendar.
+2. Drop real Auction Summary Reports into `mia_results/` and real hammer comps into `comps.csv`.
+3. Run `python3 -m tradein.backtest FOLDER`. If the comps model's median error or range coverage is poor for a category, don't quote that category yet.
+4. **Everything in `sample/` is synthetic.**
 
-Use **realized** prices (auction results, confirmed retail sales), not asking
-prices. Rows with an unparseable year, hours, price, or date are dropped.
+## Layout
 
-> **The committed `comps.csv` and `trade_deal.json` are synthetic sample data.**
-> They exist for demos and tests and are not market data. Replace them with
-> real auction results before you quote numbers to an operator.
-
-## Next steps (not built yet)
-
-- **Intake:** extract the deal fields from a photographed or PDF dealer quote
-  with an LLM, so the operator never fills in JSON.
-- **Comps feed:** populate `comps.csv` from MIA sale results plus auction-result
-  exports, matched on configuration (tracks vs. wheels, PTO, separator hours,
-  row count / spacing).
-- **Market timing overlay:** add category trend signals, for example tight
-  used high-HP tractor inventory, to the report as negotiation context.
+```
+trade_in_check.py      CLI
+tradein/categories.py  make/model -> row-crop category
+tradein/comps.py       comps loading, price-basis normalization, buyer's-premium stripping
+tradein/mia.py         Auction Summary / ExportFleet loaders, self-validating calibration
+tradein/valuation.py   comps + calibrated-Sandhills anchors, fitted adjustments, measured ranges
+tradein/deal.py        quote decomposition, break-even, financing value
+tradein/routes.py      consign net, dealer ceiling, SD excise
+tradein/tax.py         CPA facts and questions
+tradein/analyze.py     orchestration and verdict
+tradein/report.py      operator report and MIA desk sheet
+tradein/intake.py      Claude quote reader with evidence verification
+tradein/backtest.py    leave-one-out accuracy on your data
+```
