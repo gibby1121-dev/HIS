@@ -1,0 +1,20 @@
+Category,Make,Model,Year,Hours,SalePrice,SaleDate,SaleType,Region,Notes
+4WD Tractor,John Deere,9RX 640,2021,1850,478000,2026-08-14,Auction,Iowa,PTO; 1000 PTO; 30in tracks
+4WD Tractor,John Deere,9RX 640,2021,2400,455000,2026-06-21,Auction,Illinois,30in tracks
+4WD Tractor,John Deere,9RX 640,2020,2650,431000,2026-03-11,Auction,Nebraska,36in tracks
+4WD Tractor,John Deere,9RX 640,2022,1300,525000,2026-07-30,Retail Sold,Iowa,PTO; AutoTrac activated
+4WD Tractor,John Deere,9RX 640,2021,2100,470000,2025-12-03,Auction,Minnesota,
+4WD Tractor,John Deere,9RX 590,2021,1900,432000,2026-05-17,Auction,Iowa,
+4WD Tractor,John Deere,9RX 590,2020,2900,388000,2026-02-08,Auction,Illinois,
+4WD Tractor,John Deere,9R 640,2021,2200,431000,2026-04-25,Auction,South Dakota,wheeled
+4WD Tractor,John Deere,9R 540,2020,2800,342000,2026-01-19,Auction,Iowa,wheeled
+4WD Tractor,Case IH,Steiger 620 Quadtrac,2021,2000,452000,2026-07-09,Auction,Iowa,
+4WD Tractor,Case IH,Steiger 620 Quadtrac,2020,2700,405000,2025-11-14,Auction,Illinois,
+4WD Tractor,Case IH,Steiger 580 Quadtrac,2021,1700,418000,2026-03-28,Auction,Nebraska,
+Combine,John Deere,S780,2021,1150,412000,2026-08-02,Auction,Iowa,Sep hrs 820
+Combine,John Deere,S780,2020,1500,371000,2026-04-12,Auction,Illinois,Sep hrs 1040
+Combine,John Deere,S790,2021,1300,446000,2026-06-06,Retail Sold,Iowa,Sep hrs 910
+Combine,Case IH,8250,2021,1250,398000,2026-07-19,Auction,Minnesota,Sep hrs 860
+Planter,John Deere,DB60,2020,0,198000,2026-08-23,Auction,Iowa,24-row 30in; ExactEmerge
+Planter,John Deere,DB60,2019,0,176000,2026-03-02,Auction,Illinois,24-row 30in
+Planter,Kinze,4905,2021,0,214000,2026-06-28,Auction,Iowa,48-row 15in

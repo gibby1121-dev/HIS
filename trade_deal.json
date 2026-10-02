@@ -1,0 +1,26 @@
+{
+  "operator": "Sample Operator (synthetic example)",
+  "as_of": "2026-09-30",
+  "trade_unit": {
+    "category": "4WD Tractor",
+    "make": "John Deere",
+    "model": "9RX 640",
+    "year": 2021,
+    "hours": 2050,
+    "description": "36in tracks, 1000 PTO, StarFire receiver and G5 display included"
+  },
+  "dealer_quote": {
+    "new_unit": "2026 John Deere 9RX 640",
+    "quoted_price_with_trade": 812000,
+    "trade_allowance": 455000,
+    "cash_price_no_trade": null
+  },
+  "assumptions": {
+    "dealer_discount_pct": 8.0,
+    "commission_pct": 5.0,
+    "transport_cost": 2500,
+    "prep_cost": 1500,
+    "days_to_sell": 45,
+    "annual_interest_pct": 8.0
+  }
+}
