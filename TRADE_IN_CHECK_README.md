@@ -15,15 +15,23 @@ The research behind every rule and number is in [`docs/RESEARCH.md`](docs/RESEAR
    the PDF. Claude extracts the fields, and **every number has to come with the
    exact text it was read from**. A number that doesn't appear in that text is
    dropped. If the quote's arithmetic doesn't add up, that becomes a question for
-   the operator rather than a silent fix. (`tradein/intake.py`)
+   the operator rather than a silent fix. Two different fields can't be read
+   from the same snippet, and if the quote shows financing with an unreadable
+   rate, the run stops and asks. **Limit:** for a photo, the quoted text is
+   Claude's own reading, so it can be checked for consistency but not against
+   the pixels. The desk sheet is where a person confirms the figures.
+   (`tradein/intake.py`)
 2. **Separates out what the dealer is withholding.** The real trade value is the
    allowance minus the discount a no-trade buyer would have gotten. When the
    operator doesn't have the no-trade cash price, nothing is assumed. Instead the
    tool solves for the **break-even no-trade price** and gives the operator one
    question to ask the dealer.
-3. **Puts a floor under the over-allowance.** A dealer can't pay more for a trade
-   than its expected resale value less margin, reconditioning and floorplan. Any
-   allowance above that ceiling has to be coming back out of the new-unit price.
+3. **Estimates a floor under the over-allowance.** A dealer can't pay more for a
+   trade than its expected resale value less margin, reconditioning and
+   floorplan. The bound uses the thin ~3.7% used margin dealers have actually
+   averaged, not the 8% they target. Any allowance above that has to be coming
+   back out of the new-unit price. The reconditioning and floorplan inputs are
+   still placeholders, so the report calls this an estimate.
 4. **Values the 0% financing as well.** At the operator's own borrowing rate, the
    subsidy is worth a dollar amount. Any cash-in-lieu offer below that amount is
    worse. Lenders such as AgDirect let an operator take the cash *and* finance it.

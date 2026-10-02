@@ -78,7 +78,8 @@ class FinancingValue:
 
 @dataclass
 class Decomposition:
-    cash_difference: float                 # what the operator writes a check for
+    cash_difference: float                 # quoted price − allowance
+    cash_due: float                        # + lien payoff + other charges: the real check
     implied_trade_value: float | None      # allowance − withheld discount
     withheld_discount: float | None
     quote_discount_off_list_pct: float | None
@@ -96,22 +97,34 @@ def level_payment(principal: float, apr: float, n: int, per_year: int) -> float:
     return principal * r / (1 - (1 + r) ** -n)
 
 
-def value_financing(f: Financing, default_amount: float, operator_apr: float) -> FinancingValue:
-    """Cash value of a subsidized rate at the operator's own borrowing rate."""
+def value_financing(f: Financing, default_amount: float, operator_apr: float) -> FinancingValue | None:
+    """Cash value of a subsidized rate at the operator's own borrowing rate.
+
+    Timing is in months: no payments (and no interest) during the waiver, then
+    level payments every 12/payments_per_year months at the program rate. Each
+    payment is discounted at the operator's rate compounded monthly.
+    Returns None when there is nothing to finance.
+    """
     amount = f.amount_financed if f.amount_financed is not None else default_amount
     if amount <= 0:
-        raise DealError("amount financed must be positive.")
-    per = f.payments_per_year
-    months_per = 12 // per
-    waiver_periods = f.waiver_months // months_per
-    n_total = f.term_months // months_per
-    n_pay = n_total - waiver_periods
-    if n_pay <= 0:
+        return None
+    if f.payments_per_year not in (1, 2, 4, 12):
+        raise DealError("payments_per_year must be 1, 2, 4 or 12.")
+    if f.apr < 0 or operator_apr < 0:
+        raise DealError("rates cannot be negative.")
+    step = 12 // f.payments_per_year
+    remaining = f.term_months - f.waiver_months
+    if remaining <= 0:
         raise DealError("waiver_months must be shorter than term_months.")
-    pmt = level_payment(amount, f.apr, n_pay, per)
-    r_op = operator_apr / 100.0 / per
-    # First payment one period after the waiver ends.
-    pv = sum(pmt / (1 + r_op) ** (waiver_periods + k) for k in range(1, n_pay + 1))
+    if remaining % step:
+        raise DealError(
+            f"A {f.term_months}-month term with a {f.waiver_months}-month waiver doesn't divide "
+            f"into payments every {step} months; check the financing terms."
+        )
+    n_pay = remaining // step
+    pmt = level_payment(amount, f.apr, n_pay, f.payments_per_year)
+    r_m = operator_apr / 100.0 / 12
+    pv = sum(pmt / (1 + r_m) ** (f.waiver_months + step * k) for k in range(1, n_pay + 1))
     subsidy = amount - pv
     if f.cash_in_lieu is None:
         better = "ask"
@@ -123,6 +136,8 @@ def value_financing(f: Financing, default_amount: float, operator_apr: float) ->
 def decompose(q: Quote, consign_net_mid: float, operator_apr: float) -> Decomposition:
     q.validate()
     diff = q.quoted_price_with_trade - q.trade_allowance
+    charges = sum(float(c.get("amount", 0) or 0) for c in q.other_charges)
+    cash_due = diff + q.trade_payoff + charges
     off_list = None
     if q.list_price:
         off_list = (q.list_price - q.quoted_price_with_trade) / q.list_price * 100
@@ -139,16 +154,17 @@ def decompose(q: Quote, consign_net_mid: float, operator_apr: float) -> Decompos
 
     fin = None
     if q.financing:
-        fin = value_financing(q.financing, diff, operator_apr)
+        fin = value_financing(q.financing, cash_due, operator_apr)
 
     return Decomposition(
         cash_difference=diff,
+        cash_due=cash_due,
         implied_trade_value=implied,
         withheld_discount=withheld,
         quote_discount_off_list_pct=off_list,
         breakeven_discount_pct=be_pct,
         breakeven_cash_price=be_price,
         trade_equity=q.trade_allowance - q.trade_payoff,
-        other_charges_total=sum(float(c.get("amount", 0) or 0) for c in q.other_charges),
+        other_charges_total=charges,
         financing=fin,
     )

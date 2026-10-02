@@ -153,3 +153,41 @@ def test_payment_frequency_words():
     assert intake._word_supports("financing_payments_per_year", 12, "monthly payments")
     assert not intake._word_supports("financing_payments_per_year", 1, "semi-annual")
     assert not intake._word_supports("trade_hours", 1, "annual")
+
+
+# --- Regression tests from adversarial review -------------------------------
+@pytest.mark.parametrize("value,text,integer,ok", [
+    (2021, "2010 John Deere 9RX", True, False),
+    (455000, "$452,500", False, False),
+    (1200000, "$1.2M", False, True),
+    (2050, "2,050 key", True, True),
+    (3.9, "3.90% APR", False, True),
+])
+def test_strict_matching(value, text, integer, ok):
+    assert intake._number_in_text(value, text, integer) is ok
+
+
+def test_term_in_years_accepted(quote_png):
+    ex = extraction(financing_term_months=num(60, "5 years"))
+    r = intake.extract_deal([quote_png], notes=NOTE, client=FakeClient(ex))
+    assert r.deal["dealer_quote"]["financing"]["term_months"] == 60
+
+
+def test_unreadable_apr_blocks(quote_png):
+    ex = extraction(financing_apr=num(3.9, "illegible"))
+    r = intake.extract_deal([quote_png], notes=NOTE, client=FakeClient(ex))
+    assert not r.ready
+    assert any("APR" in x for x in r.questions)
+
+
+def test_swapped_field_from_shared_evidence_dropped(quote_png):
+    shared = "Trade allowance 455,000 Balance 357,000"
+    ex = extraction(trade_allowance=num(357000, shared), stated_difference=num(455000, shared))
+    r = intake.extract_deal([quote_png], notes=NOTE, client=FakeClient(ex))
+    assert r.deal["dealer_quote"]["trade_allowance"] is None
+    assert not r.ready
+
+
+def test_schema_uses_anyof_for_nullables():
+    v = intake.SCHEMA["properties"]["list_price"]["properties"]["value"]
+    assert v == {"anyOf": [{"type": "number"}, {"type": "null"}]}

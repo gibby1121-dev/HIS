@@ -101,6 +101,8 @@ class CategoryCalibration:
     median_ratio: float      # hammer / Sandhills auction estimate (raw)
     p25_ratio: float
     p75_ratio: float
+    p10_ratio: float
+    p90_ratio: float
     applied_ratio: float     # shrunk toward 1.0 by sample size
     implied_bp_pct: float | None  # observed (final-with-BP / hammer) - 1
 
@@ -141,6 +143,8 @@ def _summarize(cat: str, df: pd.DataFrame) -> CategoryCalibration:
         median_ratio=med,
         p25_ratio=float(r.quantile(0.25)),
         p75_ratio=float(r.quantile(0.75)),
+        p10_ratio=float(r.quantile(0.10)),
+        p90_ratio=float(r.quantile(0.90)),
         applied_ratio=(n * med + SHRINK_K * 1.0) / (n + SHRINK_K),
         implied_bp_pct=float(bp.median() * 100) if len(bp) else None,
     )

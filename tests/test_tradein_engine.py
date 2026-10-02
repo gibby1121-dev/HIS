@@ -198,7 +198,7 @@ class TestDeal:
 
     def test_zero_pct_is_worth_pv_gap(self):
         f = value_financing(Financing(apr=0, term_months=60, payments_per_year=1), 300_000, 7.0)
-        pv = sum(60_000 / 1.07 ** k for k in range(1, 6))
+        pv = sum(60_000 / (1 + 0.07 / 12) ** (12 * k) for k in range(1, 6))
         assert f.pv_at_operator_rate == pytest.approx(pv)
         assert f.subsidy_value == pytest.approx(300_000 - pv)
         assert f.better == "ask"
@@ -282,7 +282,8 @@ class TestVerdicts:
 
     def test_over_allowance_lower_bound(self, sample_inputs):
         a = run(sample_inputs)
-        assert a.min_withheld_discount == pytest.approx(455_000 - a.dealer.ceiling)
+        assert a.min_withheld_discount == pytest.approx(455_000 - a.dealer.ceiling_high)
+        assert a.dealer.ceiling_high > a.dealer.ceiling
 
     def test_sd_operator_counts_excise(self, sample_inputs):
         raw = copy.deepcopy(SAMPLE_DEAL)
@@ -334,3 +335,83 @@ class TestCli:
         (tmp_path / "trade_deal.json").write_text(json.dumps({"trade_unit": {}}))
         import trade_in_check
         assert trade_in_check.main([str(tmp_path)]) == 1
+
+
+# --------------------------------------------------------------------------- #
+# Regression tests for defects found in adversarial review.
+class TestReviewRegressions:
+    def test_newer_unit_is_worth_more(self, sample_inputs):
+        comps, _ = sample_inputs
+        vals = [value_unit(unit(year=y, hours=2050), comps, AS_OF).mid for y in (2019, 2021, 2023)]
+        assert vals[0] < vals[1] < vals[2]
+
+    def test_single_older_comp_adjusts_up(self):
+        v = value_unit(unit(year=2022), comps_frame([{"Price": 100_000, "Year": 2020}]), AS_OF)
+        assert v.mid == pytest.approx(100_000 / 0.93 ** 2)
+
+    def test_more_hours_worth_less(self):
+        df = comps_frame([{"Price": 100_000, "Hours": 2000}])
+        assert value_unit(unit(hours=3000), df, AS_OF).mid < value_unit(unit(hours=1000), df, AS_OF).mid
+
+    def test_negative_breakeven_is_squeezed_not_unknown(self, sample_inputs):
+        a = run(sample_inputs, trade_allowance=340_000)
+        assert a.breakeven["mid"] <= 0
+        assert a.verdict == "squeezed"
+        text = operator_report(a, "t")
+        assert "off this quote), the trade" not in text  # no impossible break-even line
+        bottom = text[text.index("## Bottom line"):text.index("## The dealer deal")]
+        assert not re.search(r"-\d+\.\d%", bottom)
+
+    def test_cash_due_includes_payoff_and_charges(self, sample_inputs):
+        a = run(sample_inputs, trade_payoff=150_000)
+        d = a.decomposition
+        assert d.cash_due == pytest.approx(812_000 - 455_000 + 150_000 + 4_800)
+        assert d.financing.amount_financed == pytest.approx(d.cash_due)
+
+    def test_allowance_at_or_above_quote_with_financing_does_not_crash(self, sample_inputs):
+        a = run(sample_inputs, trade_allowance=812_000, other_charges=[])
+        assert a.decomposition.financing is None
+
+    def test_waiver_changes_value_with_annual_payments(self):
+        base = value_financing(Financing(apr=3.9, term_months=60, payments_per_year=1), 300_000, 7.0)
+        w = value_financing(Financing(apr=3.9, term_months=66, payments_per_year=1, waiver_months=6),
+                            300_000, 7.0)
+        assert w.subsidy_value > base.subsidy_value
+
+    def test_uneven_term_rejected(self):
+        with pytest.raises(DealError, match="divide"):
+            value_financing(Financing(apr=3.9, term_months=18, payments_per_year=1), 300_000, 7.0)
+
+    def test_zero_borrow_rate_respected(self, sample_inputs):
+        raw = copy.deepcopy(SAMPLE_DEAL)
+        raw["operator"]["borrow_apr"] = 0
+        assert analyze(raw, *sample_inputs).operator.borrow_apr == 0
+
+    def test_uncalibrated_sandhills_only_is_low_confidence(self):
+        from tradein.mia import Calibration
+        cal = Calibration({}, None, 0, 0, {})
+        v = value_unit(unit(category=cats.SPRAYER, make="Hagie", model="STS16",
+                            sandhills_vip={"auction": 200_000}), None, AS_OF, cal)
+        assert v.confidence == "Low"
+
+    def test_planter_comps_with_blank_hours_load(self):
+        raw = pd.DataFrame([{"Make": "John Deere", "Model": "DB60", "Year": "2020", "Hours": "",
+                             "Price": "170000", "PriceBasis": "hammer", "SaleDate": "2026-08-01"}] * 2)
+        df = normalize(raw)
+        assert len(df) == 2 and (df["Hours"] == 0).all()
+
+    def test_planter_trade_without_hours(self, sample_inputs):
+        raw = copy.deepcopy(SAMPLE_DEAL)
+        raw["trade_unit"] = {"make": "John Deere", "model": "DB60", "year": 2020}
+        a = analyze(raw, *sample_inputs)
+        assert a.unit.hours == 0 and a.unit.category == cats.PLANTER
+
+    def test_edge_wording_matches_sign(self, sample_inputs):
+        for cash in (690_000, 760_000, 805_000):
+            a = run(sample_inputs, cash_price_no_trade=cash)
+            text = operator_report(a, "t")
+            assert "close to even" not in text
+
+    def test_cpa_section_is_framed_as_question(self, sample_inputs):
+        text = operator_report(run(sample_inputs), "t")
+        assert "treated as sold" not in text and "Ask your CPA" in text

@@ -39,8 +39,8 @@ def _numfield(desc: str) -> dict:
         "type": "object",
         "description": desc,
         "properties": {
-            "value": {"type": ["number", "null"]},
-            "evidence": {"type": ["string", "null"],
+            "value": {"anyOf": [{"type": "number"}, {"type": "null"}]},
+            "evidence": {"anyOf": [{"type": "string"}, {"type": "null"}],
                          "description": "Exact text copied from the document or note that shows this number."},
             "source": {"type": "string", "enum": ["document", "note", "absent"]},
         },
@@ -54,7 +54,7 @@ def _strfield(desc: str) -> dict:
         "type": "object",
         "description": desc,
         "properties": {
-            "value": {"type": ["string", "null"]},
+            "value": {"anyOf": [{"type": "string"}, {"type": "null"}]},
             "source": {"type": "string", "enum": ["document", "note", "absent"]},
         },
         "required": ["value", "source"],
@@ -149,20 +149,38 @@ def _digits(s: str) -> str:
     return re.sub(r"[^\d.]", "", s or "")
 
 
-def _number_in_text(value: float, text: str) -> bool:
-    """Does ``value`` appear in ``text`` (allowing $, commas, k, %, decimals)?"""
-    if text is None:
-        return False
-    t = text.lower().replace(",", "")
-    candidates = set()
-    for tok in re.findall(r"\d+(?:\.\d+)?\s*k?", t):
-        k = tok.endswith("k")
-        try:
-            n = float(tok.rstrip("k").strip())
-        except ValueError:
-            continue
-        candidates.add(n * 1000 if k else n)
-    return any(abs(c - value) < 0.006 * max(1.0, abs(value)) for c in candidates)
+_NUM_RE = re.compile(r"(?<![\w.])(\d+(?:\.\d+)?)(\s*(?:k|m|mm)\b)?", re.I)
+INTEGER_FIELDS = {"trade_year", "trade_hours", "financing_term_months",
+                  "financing_payments_per_year", "financing_waiver_months"}
+
+
+def numbers_in(text: str) -> list[float]:
+    """Every number in ``text``; '$455k' -> 455000, '$1.2M' -> 1200000."""
+    if not text:
+        return []
+    out = []
+    for n, suffix in _NUM_RE.findall(text.replace(",", "")):
+        v = float(n)
+        sfx = (suffix or "").strip().lower()
+        if sfx == "k":
+            v *= 1_000
+        elif sfx in ("m", "mm"):
+            v *= 1_000_000
+        out.append(v)
+    return out
+
+
+def _number_in_text(value: float, text: str, integer: bool = False) -> bool:
+    """``value`` appears in ``text`` exactly (to the cent; whole units for integers)."""
+    tol = 0.5 if integer else 0.005
+    return any(abs(c - value) <= tol for c in numbers_in(text))
+
+
+def _term_in_years(value: float, text: str) -> bool:
+    """'5 years' / '5-year' supports a 60-month term."""
+    t = (text or "").lower()
+    return bool(re.search(r"\byears?\b|\byr\b|-year", t)) and any(
+        abs(c * 12 - value) < 0.5 for c in numbers_in(t))
 
 
 _PERIOD_WORDS = {1: ("annual", "yearly", "per year"), 2: ("semi-annual", "semiannual"),
@@ -237,12 +255,33 @@ def verify(ex: dict, notes: str) -> tuple[dict, list[str]]:
         if v is None:
             continue
         ev = f.get("evidence") or ""
-        ok = _number_in_text(float(v), ev) or _word_supports(key, float(v), ev)
+        ok = (_number_in_text(float(v), ev, integer=key in INTEGER_FIELDS)
+              or _word_supports(key, float(v), ev)
+              or (key == "financing_term_months" and _term_in_years(float(v), ev)))
+        if ok and key in INTEGER_FIELDS and float(v) != int(float(v)):
+            ok = False
         if ok and f.get("source") == "note":
             ok = " ".join(ev.split()).lower() in norm_notes
         if not ok:
             dropped.append(f"{key}={v!r} (evidence: {ev!r})")
             ex[key] = {"value": None, "evidence": None, "source": "absent"}
+    # Two different fields can't both be read from the same snippet with
+    # different values (a swap like allowance <- balance due).
+    money = ["list_price", "quoted_price_with_trade", "trade_allowance", "stated_difference",
+             "cash_price_no_trade", "trade_payoff", "cash_in_lieu"]
+    seen: dict[str, str] = {}
+    for key in money:
+        f = ex.get(key) or {}
+        ev = " ".join((f.get("evidence") or "").split()).lower()
+        if f.get("value") is None or not ev:
+            continue
+        if ev in seen and len(set(numbers_in(ev))) > 1:
+            for k in (key, seen[ev]):
+                if ex[k]["value"] is not None:
+                    dropped.append(f"{k}={ex[k]['value']!r} (shares ambiguous evidence {ev!r})")
+                    ex[k] = {"value": None, "evidence": None, "source": "absent"}
+        else:
+            seen[ev] = key
     kept = []
     for ch in ex.get("other_charges") or []:
         if _number_in_text(float(ch["amount"]), ch.get("evidence", "")):
@@ -287,13 +326,17 @@ def to_deal(ex: dict) -> tuple[dict, list[str], bool]:
 
     fin = None
     if v("financing_term_months"):
+        if v("financing_apr") is None:
+            q.append("The quote shows financing but the rate couldn't be read. What's the APR?")
+            blocking = True
+        if v("financing_payments_per_year") is None:
+            q.append("Are the financing payments annual or monthly?")
+            blocking = True
         fin = {"apr": v("financing_apr") or 0.0,
                "term_months": int(v("financing_term_months")),
                "payments_per_year": int(v("financing_payments_per_year") or 1),
                "waiver_months": int(v("financing_waiver_months") or 0),
                "cash_in_lieu": v("cash_in_lieu")}
-        if v("financing_payments_per_year") is None:
-            q.append("Are the financing payments annual or monthly?")
 
     deal = {
         "as_of": v("quote_date"),

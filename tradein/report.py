@@ -44,8 +44,19 @@ def operator_report(a: Analysis, generated: str) -> str:
     # ---- Bottom line -------------------------------------------------------
     head = VERDICT[a.verdict]
     if a.verdict in ("squeezed", "strong") and d.implied_trade_value is not None:
-        head += (" That holds across the whole likely value range." if a.certain else
-                 " That's at the middle of the value range; at the edge of the range it's close to even.")
+        if a.certain:
+            head += " That holds across the whole likely value range."
+        else:
+            edge = a.spread["low"] if a.verdict == "squeezed" else a.spread["high"]
+            end = "low" if a.verdict == "squeezed" else "high"
+            if edge > 0:
+                at_edge = f"consigning would still net {m(edge)} more"
+            elif edge < 0:
+                at_edge = f"trading would net {m(-edge)} more"
+            else:
+                at_edge = "it's even"
+            head += (f" That's at the middle estimate of your unit's value; at the {end} end "
+                     f"of the range, {at_edge}.")
     L += ["## Bottom line", "", head, ""]
     if d.implied_trade_value is not None:
         s = a.spread
@@ -61,27 +72,36 @@ def operator_report(a: Analysis, generated: str) -> str:
             L.append(f"- **Trading puts about {m(-s['mid'])} more in your pocket** than consigning "
                      f"(range {m(-s['high'])} to {m(-s['low'])}).")
         if a.tax_advantage_trade:
-            L.append(f"- Already counted: {a.operator.state} taxes only the cash difference on a "
-                     f"trade, which saves you about {m(a.tax_advantage_trade)} versus selling separately.")
+            L.append(f"- Already counted: {a.operator.state} taxes farm machinery only on the cash "
+                     f"difference after a trade, which saves you about {m(a.tax_advantage_trade)} versus "
+                     "selling separately (at the 4.5% statutory rate; confirm the current rate).")
     else:
         be = a.breakeven
         L.append(f"- Ask the dealer one question: **\"What's your cash price on the {q.new_unit} "
                  f"if I don't trade anything in?\"**")
         if a.min_withheld_discount > 0:
-            L.append(f"- The {m(q.trade_allowance)} allowance is **{m(a.min_withheld_discount)} more "
-                     f"than a dealer can pay for this unit and still earn a normal used margin** "
-                     f"(about {m(a.dealer.ceiling)}, see below). Expect at least that much to be "
-                     "coming back out of your new-unit price.")
+            L.append(f"- The {m(q.trade_allowance)} allowance is about **{m(a.min_withheld_discount)} "
+                     f"more than a dealer could pay for this unit** even on the thin used margins "
+                     f"dealers have actually averaged (estimate: {m(a.dealer.ceiling_high)}, see below). "
+                     "Expect roughly that much or more to be coming back out of your new-unit price.")
         if a.verdict == "squeezed":
-            L.append(f"- It doesn't matter much what they say: the {m(q.trade_allowance)} allowance "
-                     f"is already below the {m(c['low'].net)} your unit likely nets consigned, "
-                     "even before any withheld discount comes out.")
+            ref = c["low"].net if a.certain else c["mid"].net
+            L.append(f"- Whatever they answer, the {m(q.trade_allowance)} allowance is already below "
+                     f"the {m(ref)} your unit "
+                     + ("nets consigned even at the low end of its value range"
+                        if a.certain else "nets consigned at the middle estimate of its value")
+                     + ", before any withheld discount comes out. A no-trade price can only "
+                     "make the real trade value lower.")
         else:
             L.append(f"- **If their no-trade price is below {m(d.breakeven_cash_price)}** "
                      f"(more than {pct(be['mid'])} off this quote), the trade is paying you less "
                      f"than consigning at Mid-Iowa nets. Above that, the trade wins.")
-            L.append(f"- Given the uncertainty in your unit's value, the line runs from "
-                     f"{pct(max(be['high'], 0))} to {pct(max(be['low'], 0))} off the quote.")
+            if be["high"] > 0:
+                L.append(f"- Given the uncertainty in your unit's value, the line runs from "
+                         f"{pct(be['high'])} to {pct(be['low'])} off the quote.")
+            else:
+                L.append(f"- If your unit sells at the high end of its range, the trade loses at "
+                         f"any no-trade price; at the low end the line is {pct(be['low'])} off the quote.")
             if d.quote_discount_off_list_pct is not None:
                 L.append(f"- For reference, this quote is {pct(d.quote_discount_off_list_pct)} "
                          f"off the {m(q.list_price)} list price.")
@@ -97,7 +117,7 @@ def operator_report(a: Analysis, generated: str) -> str:
         L.append(f"| List price, {q.new_unit} | {m(q.list_price)} |")
     L.append(f"| Quoted price with your trade | {m(q.quoted_price_with_trade)} |")
     L.append(f"| Trade allowance shown | {m(q.trade_allowance)} |")
-    L.append(f"| **Cash difference (your check)** | **{m(d.cash_difference)}** |")
+    L.append(f"| Cash difference (quote − allowance) | {m(d.cash_difference)} |")
     if q.cash_price_no_trade is not None:
         L.append(f"| Cash price with no trade | {m(q.cash_price_no_trade)} |")
         L.append(f"| Discount withheld because you're trading | {m(d.withheld_discount)} |")
@@ -109,6 +129,8 @@ def operator_report(a: Analysis, generated: str) -> str:
         L.append(f"| Your equity in the trade | {m(d.trade_equity)} |")
     for ch in q.other_charges:
         L.append(f"| {ch.get('label', 'Other charge')} | {m(float(ch.get('amount', 0) or 0))} |")
+    if d.cash_due != d.cash_difference:
+        L.append(f"| **Cash due (difference + lien payoff + charges)** | **{m(d.cash_due)}** |")
     L.append("")
 
     # ---- Open market --------------------------------------------------------
@@ -176,15 +198,20 @@ def operator_report(a: Analysis, generated: str) -> str:
     # ---- Dealer's side ------------------------------------------------------
     dv = a.dealer
     L += ["## What the dealer can afford to pay", ""]
-    L.append(f"A dealer can always send your unit to auction, so **{m(dv.floor)}** "
-             f"(expected hammer) is its floor. If it retails your unit at about {m(dv.resale)} "
-             f"({dv.basis}), it can pay up to about **{m(dv.ceiling)}** and still make a normal "
-             "used-equipment margin after reconditioning and floorplan.")
+    L.append(f"A dealer can always send your unit to auction, so about **{m(dv.floor)}** "
+             f"(expected hammer) is the least it should pay. If it retails your unit at about "
+             f"{m(dv.resale)} ({dv.basis}), it can pay roughly **{m(dv.ceiling)}–{m(dv.ceiling_high)}**: "
+             "the low figure at the 8% used margin dealers target, the high figure at the "
+             "~3.7% they've actually averaged. These are estimates: they also assume 2% "
+             "reconditioning and 120 days of floorplan at 8%.")
     L.append("")
     if a.verdict in ("squeezed", "close", "need_cash_price"):
         target = max(c["mid"].net, min(dv.ceiling, c["high"].net))
-        L.append(f"- **Walk-away point:** a real trade value under **{m(c['mid'].net)}** means "
-                 "consigning nets you more.")
+        walk = c["mid"].net - (a.tax_advantage_trade or 0)
+        L.append(f"- **Walk-away point:** a real trade value under **{m(walk)}** means "
+                 "consigning nets you more"
+                 + (f" (after the {m(a.tax_advantage_trade)} {a.operator.state} excise saved by trading)."
+                    if a.tax_advantage_trade else "."))
         if d.implied_trade_value is None:
             L.append(f"- **Counter:** your target real trade value is **{m(target)}**. Once you have "
                      f"the no-trade price P, the allowance on this quote should be at least "
@@ -218,10 +245,12 @@ def operator_report(a: Analysis, generated: str) -> str:
     # ---- CPA ---------------------------------------------------------------
     t = a.tax
     L += ["## For your CPA (facts and questions, not advice)", "",
-          "Since 2018, trading machinery isn't a like-kind exchange: the old unit is treated as "
-          "sold for the stated allowance, and the new unit's basis is its full price.", "",
+          "Since 2018, a machinery trade generally isn't a like-kind exchange: it's reported as a "
+          "sale of the old unit plus a purchase of the new one, with the new unit's basis at its "
+          "full price. Ask your CPA how the stated allowance and price will be reported. The "
+          "table shows the figures they'll want.", "",
           "| | Trade | Sell separately |", "|---|---|---|"]
-    L.append(f"| Old unit: amount realized | {m(t.trade_amount_realized)} (stated allowance) | "
+    L.append(f"| Old unit: stated sale amount | {m(t.trade_amount_realized)} (trade allowance) | "
              f"{m(t.sell_amount_realized)} (est. hammer less selling costs) |")
     L.append(f"| New unit: basis | {m(t.trade_new_basis)} (contract price) | "
              f"{m(t.sell_new_basis) if t.sell_new_basis else 'cash price'} |")
@@ -266,7 +295,8 @@ def desk_sheet(a: Analysis, generated: str) -> str:
          f"- Suggested reserve: no higher than {m(v.low)} (low end of range); "
          "a reserve above the range risks a no-sale.",
          f"- Operator nets {m(c['mid'].net)} at mid after {c['mid'].commission_pct:.0f}% commission.",
-         f"- Dealer's rational ceiling on this trade: {m(dv.ceiling)}; floor {m(dv.floor)}.", ""]
+         f"- Dealer ACV estimate: {m(dv.ceiling)} (8% target margin) to {m(dv.ceiling_high)} "
+         f"(3.7% actual average); floor {m(dv.floor)}. Recon/floorplan inputs are placeholders.", ""]
     if d.implied_trade_value is not None:
         L.append(f"- Dealer's real trade value {m(d.implied_trade_value)}; spread vs. consign "
                  f"{m(a.spread['mid'])} at mid.")
@@ -274,7 +304,7 @@ def desk_sheet(a: Analysis, generated: str) -> str:
         L.append(f"- Break-even no-trade price {m(d.breakeven_cash_price)}. Get the operator "
                  "to ask the dealer for the cash price, then rerun.")
     if a.min_withheld_discount > 0:
-        L.append(f"- Allowance exceeds dealer ceiling by {m(a.min_withheld_discount)}: at least that "
+        L.append(f"- Allowance exceeds even the 3.7%-margin ACV by {m(a.min_withheld_discount)}: roughly that "
                  "much over-allowance is baked into the new-unit price.")
     L += ["", "## Value anchors", ""]
     for an in v.anchors:

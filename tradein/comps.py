@@ -24,7 +24,9 @@ from pathlib import Path
 
 import pandas as pd
 
-from .categories import OTHER, classify, normalize_category
+from .categories import GRAIN_CART, HEADER, OTHER, PLANTER, classify, normalize_category
+
+NO_ENGINE = {PLANTER, GRAIN_CART, HEADER}
 
 REQUIRED_COLS = {"Make", "Model", "Year", "Hours", "Price", "SaleDate", "PriceBasis"}
 BASES = {"hammer", "with_bp", "asking"}
@@ -112,9 +114,14 @@ def normalize(raw: pd.DataFrame) -> pd.DataFrame:
     inferred = [classify(mk, md) for mk, md in zip(df["Make"], df["Model"])]
     df["Category"] = [c if c != OTHER else i for c, i in zip(cat, inferred)]
 
+    # Planters, grain carts and heads have no engine hours: blank means 0.
+    no_engine = df["Category"].isin(NO_ENGINE)
+    df.loc[no_engine & df["Hours"].isna(), "Hours"] = 0.0
+    before = len(df)
     df = df.dropna(subset=["Year", "Hours", "Price", "SaleDate"])
-    df = df[df["Price"] > 0]
-    return df.reset_index(drop=True)
+    df = df[df["Price"] > 0].reset_index(drop=True)
+    df.attrs["dropped_rows"] = before - len(df)
+    return df
 
 
 def strip_premium(total: float, bp_pct: float, cap: float | None = None) -> float:

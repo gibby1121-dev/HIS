@@ -10,7 +10,7 @@ from pathlib import Path
 import pandas as pd
 
 from . import categories
-from .comps import load_comps
+from .comps import NO_ENGINE, load_comps
 from .deal import Decomposition, DealError, Financing, Quote, decompose
 from .mia import Calibration, load_auction_history
 from .routes import (ConsignNet, DealerView, consign_net, dealer_view,
@@ -53,9 +53,10 @@ class Analysis:
 
     @property
     def min_withheld_discount(self) -> float:
-        """Allowance above the dealer's rational ceiling must be coming back
-        out of the new-unit price: a lower bound on the over-allowance."""
-        return max(0.0, self.quote.trade_allowance - self.dealer.ceiling)
+        """Allowance above what a dealer can pay even at the thin ~3.7% used
+        margin dealers have actually averaged: an estimated lower bound on the
+        over-allowance (still rests on recon/floorplan assumptions)."""
+        return max(0.0, self.quote.trade_allowance - self.dealer.ceiling_high)
 
 
 def _num(v, where):
@@ -72,7 +73,7 @@ def parse(raw: dict) -> tuple[Unit, Quote, Operator, dt.date]:
         t, q = raw["trade_unit"], raw["dealer_quote"]
     except KeyError as exc:
         raise DealError(f"Deal file is missing '{exc.args[0]}'.") from exc
-    for k in ("make", "model", "year", "hours"):
+    for k in ("make", "model", "year"):
         if t.get(k) in (None, ""):
             raise DealError(f"trade_unit.{k} is required.")
     cat = categories.normalize_category(t.get("category", "")) if t.get("category") else categories.OTHER
@@ -83,6 +84,10 @@ def parse(raw: dict) -> tuple[Unit, Quote, Operator, dt.date]:
             f"Can't tell what kind of machine a {t['make']} {t['model']} is. "
             "Set trade_unit.category (e.g. '4WD Tractor', 'Combine', 'Planter')."
         )
+    if t.get("hours") in (None, ""):
+        if cat not in NO_ENGINE:
+            raise DealError("trade_unit.hours is required for a machine with an engine.")
+        t = {**t, "hours": 0}
     unit = Unit(
         category=cat, make=str(t["make"]).strip(), model=str(t["model"]).strip(),
         year=int(_num(t["year"], "trade_unit.year")), hours=_num(t["hours"], "trade_unit.hours"),
@@ -96,14 +101,15 @@ def parse(raw: dict) -> tuple[Unit, Quote, Operator, dt.date]:
         fin = Financing(
             apr=_num(f.get("apr"), "financing.apr") or 0.0,
             term_months=int(_num(f.get("term_months"), "financing.term_months") or 0),
-            payments_per_year=int(_num(f.get("payments_per_year"), "financing.payments_per_year") or 1),
+            payments_per_year=int(_num(f.get("payments_per_year"), "financing.payments_per_year")
+                                  if f.get("payments_per_year") not in (None, "") else 1),
             waiver_months=int(_num(f.get("waiver_months"), "financing.waiver_months") or 0),
             amount_financed=_num(f.get("amount_financed"), "financing.amount_financed"),
             cash_in_lieu=_num(f.get("cash_in_lieu"), "financing.cash_in_lieu"),
         )
         if fin.term_months <= 0:
             raise DealError("financing.term_months is required when financing is given.")
-        if 12 % fin.payments_per_year:
+        if fin.payments_per_year not in (1, 2, 4, 12):
             raise DealError("financing.payments_per_year must be 1, 2, 4 or 12.")
     quote = Quote(
         new_unit=str(q.get("new_unit", "new unit")),
@@ -122,7 +128,8 @@ def parse(raw: dict) -> tuple[Unit, Quote, Operator, dt.date]:
     op = Operator(
         name=str(o.get("name", "")),
         state=str(o.get("state", "IA")).upper(),
-        borrow_apr=_num(o.get("borrow_apr"), "operator.borrow_apr") or DEFAULT_OPERATOR_APR,
+        borrow_apr=(DEFAULT_OPERATOR_APR if o.get("borrow_apr") in (None, "")
+                    else _num(o.get("borrow_apr"), "operator.borrow_apr")),
         old_unit_adjusted_basis=_num(o.get("old_unit_adjusted_basis"), "operator.old_unit_adjusted_basis"),
     )
     as_of = dt.date.fromisoformat(raw["as_of"]) if raw.get("as_of") else dt.date.today()
@@ -143,6 +150,9 @@ def analyze(raw: dict, comps: pd.DataFrame | None = None,
     if not terms["commission"].get("verified"):
         warnings.append("MIA commission brackets are placeholders (published range is 3–6%).")
 
+    if comps is not None and comps.attrs.get("dropped_rows"):
+        warnings.append(f"{comps.attrs['dropped_rows']} comp row(s) skipped for a missing "
+                        "year, hours, price or sale date.")
     val = value_unit(unit, comps, as_of, calibration)
     consign = {k: consign_net(h, terms, op.borrow_apr)
                for k, h in (("low", val.low), ("mid", val.mid), ("high", val.high))}
@@ -172,8 +182,12 @@ def analyze(raw: dict, comps: pd.DataFrame | None = None,
         # A no-trade price can't be above the quote, so the real trade value is
         # at most the allowance. If the allowance is already below even the
         # low-end consign net, the trade is short no matter what the cash price is.
-        if allow + threshold < consign["low"].net:
+        # A no-trade price can't exceed the quote, so a break-even at or below
+        # 0% means the trade loses whatever the dealer's cash price turns out to be.
+        if breakeven["low"] <= 0:
             verdict, certain = "squeezed", True
+        elif breakeven["mid"] <= 0:
+            verdict, certain = "squeezed", False
         else:
             verdict, certain = "need_cash_price", False
         if op.state in ("SD",):

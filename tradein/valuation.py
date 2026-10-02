@@ -145,8 +145,10 @@ def fit_rates(sold: pd.DataFrame) -> tuple[float, float, bool]:
 
 def _adjust(price: pd.Series, year: pd.Series, hours: pd.Series, unit: Unit,
             dep: float, per_khr: float) -> pd.Series:
-    year_f = (1 - dep) ** (unit.year - year)
-    hrs_f = ((1 - per_khr) ** ((unit.hours - hours) / 1000.0))
+    # A comp one model year OLDER than the unit is adjusted UP by 1/(1-dep);
+    # a comp with FEWER hours than the unit is adjusted DOWN.
+    year_f = (1 - dep) ** (year - unit.year)
+    hrs_f = (1 - per_khr) ** ((unit.hours - hours) / 1000.0)
     return price * year_f * hrs_f
 
 
@@ -241,16 +243,17 @@ def _vip_anchor(unit: Unit, cal: Calibration | None) -> Anchor | None:
                f"{unit.category.lower()}s on held-out lots")
         return Anchor("Sandhills VIP+ auction value (uncalibrated)",
                       vip * 0.9, vip, vip * 1.1, f"{why.capitalize()}; ±10% shown, not measured")
-    # Center on the shrunk ratio; spread by the observed interquartile range.
-    spread_lo = c.median_ratio - c.p25_ratio
-    spread_hi = c.p75_ratio - c.median_ratio
+    # Center on the shrunk ratio; spread by the observed 10th-90th percentile
+    # (an interquartile spread is only a ~50% interval).
+    spread_lo = c.median_ratio - c.p10_ratio
+    spread_hi = c.p90_ratio - c.median_ratio
     mid = vip * c.applied_ratio
     return Anchor(
         "Sandhills VIP+ × MIA results",
         vip * (c.applied_ratio - spread_lo), mid, vip * (c.applied_ratio + spread_hi),
         f"VIP+ auction ${vip:,.0f}; MIA hammer ran {c.median_ratio:.0%} of Sandhills "
         f"estimate across {c.lots} {c.category.lower()} lots "
-        f"(middle half {c.p25_ratio:.0%}–{c.p75_ratio:.0%}); applied {c.applied_ratio:.0%}. "
+        f"(10th–90th percentile {c.p10_ratio:.0%}–{c.p90_ratio:.0%}); applied {c.applied_ratio:.0%}. "
         f"Held-out check: {cal.validation[unit.category][1]:.1f}% median error vs "
         f"{cal.validation[unit.category][0]:.1f}% raw Sandhills",
     )
@@ -293,7 +296,15 @@ def value_unit(unit: Unit, comps: pd.DataFrame | None, as_of: dt.date,
     else:
         only = anchors[0]
         low, mid, high = only.low, only.mid, only.high
-        confidence = getattr(only, "confidence", "Medium" if vip_anchor and calibration else "Low")
+        if comps_anchor:
+            confidence = getattr(only, "confidence", "Low")
+        else:
+            # Sandhills alone: Medium only if MIA history validated it for this category.
+            calibrated = "uncalibrated" not in only.name
+            confidence = "Medium" if calibrated else "Low"
+            if not calibrated:
+                flags.append("Value rests on the Sandhills estimate alone, not checked against "
+                             "MIA results for this category; the ±10% band is not measured.")
 
     if not fitted and len(sold):
         flags.append(

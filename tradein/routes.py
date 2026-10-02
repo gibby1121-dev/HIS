@@ -24,6 +24,7 @@ from .valuation import Valuation
 
 # Dealer economics assumptions; every one is printed in the desk sheet.
 DEALER_MARGIN_PCT = 8.0        # Farm Equipment benchmark target (8% x 2 turns)
+DEALER_MARGIN_ACTUAL_PCT = 3.7  # Farm Equipment: 5-yr average actual used margin (2012-16)
 DEALER_RECON_PCT = 2.0         # not published; placeholder
 DEALER_HOLD_DAYS = 120         # 2-3 turns/yr target; 4WD/high-HP turns slower in 2026
 DEALER_FLOORPLAN_APR = 8.0     # placeholder floorplan cost of money
@@ -46,7 +47,8 @@ class ConsignNet:
 class DealerView:
     floor: float           # auction hammer: what the dealer gets by wholesaling to auction
     resale: float          # expected retail resale (Resale Cash)
-    ceiling: float         # max rational ACV
+    ceiling: float         # ACV at the 8% target margin
+    ceiling_high: float    # ACV at the ~3.7% margin dealers actually averaged
     basis: str
 
 
@@ -81,8 +83,10 @@ def dealer_view(val: Valuation, sandhills_vip: dict | None) -> DealerView:
         resale = val.mid * RESALE_OVER_AUCTION
         basis = f"hammer estimate × {RESALE_OVER_AUCTION:.2f} (no VIP+ market value supplied)"
     hold = resale * DEALER_FLOORPLAN_APR / 100.0 * DEALER_HOLD_DAYS / 365.0
-    ceiling = resale * (1 - (DEALER_MARGIN_PCT + DEALER_RECON_PCT) / 100.0) - hold
-    return DealerView(floor=val.mid, resale=resale, ceiling=max(ceiling, val.mid), basis=basis)
+    acv = lambda margin: resale * (1 - (margin + DEALER_RECON_PCT) / 100.0) - hold  # noqa: E731
+    return DealerView(floor=val.mid, resale=resale,
+                      ceiling=max(acv(DEALER_MARGIN_PCT), val.mid),
+                      ceiling_high=max(acv(DEALER_MARGIN_ACTUAL_PCT), val.mid), basis=basis)
 
 
 # South Dakota taxes farm machinery under a separate excise on the cash
