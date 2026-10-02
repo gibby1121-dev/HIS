@@ -1,0 +1,19 @@
+Category,Make,Model,Year,Hours,Price,PriceBasis,BuyerPremiumPct,BuyerPremiumCap,SaleDate,Source,Region,Config
+4WD Tractor,John Deere,9RX 640,2021,1850,401000,hammer,,,2026-08-19,SYNTHETIC sample A,IA,36in tracks; 1000 PTO
+4WD Tractor,John Deere,9RX 640,2021,2400,425700,with_bp,10,,2026-07-16,SYNTHETIC sample B,KS,30in tracks
+4WD Tractor,John Deere,9RX 640,2020,2650,352000,hammer,,,2026-03-11,SYNTHETIC sample A,NE,36in tracks
+4WD Tractor,John Deere,9RX 640,2022,1300,447500,with_bp,10,2500,2026-07-30,SYNTHETIC sample C,IA,PTO; AutoTrac
+4WD Tractor,John Deere,9RX 640,2021,2100,388000,hammer,,,2025-12-03,SYNTHETIC sample A,MN,
+4WD Tractor,John Deere,9RX 640,2022,1900,431000,hammer,,,2026-05-06,SYNTHETIC sample A,IL,36in tracks
+4WD Tractor,John Deere,9RX 590,2021,1900,357000,hammer,,,2026-05-17,SYNTHETIC sample A,IA,
+4WD Tractor,John Deere,9RX 590,2020,2900,316000,hammer,,,2026-02-08,SYNTHETIC sample A,IL,
+4WD Tractor,John Deere,9R 640,2021,2200,352000,hammer,,,2026-04-25,SYNTHETIC sample A,SD,wheeled
+4WD Tractor,John Deere,9R 540,2020,2800,281000,hammer,,,2026-01-19,SYNTHETIC sample A,IA,wheeled
+4WD Tractor,Case IH,Steiger 620 Quadtrac,2021,2000,377000,hammer,,,2026-07-09,SYNTHETIC sample A,IA,
+4WD Tractor,Case IH,Steiger 620 Quadtrac,2020,2700,334000,hammer,,,2025-11-14,SYNTHETIC sample A,IL,
+4WD Tractor,John Deere,9RX 640,2021,2000,529000,asking,,,2026-09-20,SYNTHETIC listing,IA,
+4WD Tractor,John Deere,9RX 640,2021,2300,515000,asking,,,2026-09-12,SYNTHETIC listing,NE,
+4WD Tractor,John Deere,9RX 640,2020,2600,489000,asking,,,2026-09-01,SYNTHETIC listing,MN,
+Combine,John Deere,S780,2021,1150,338000,hammer,,,2026-08-02,SYNTHETIC sample A,IA,Sep hrs 820
+Combine,John Deere,S780,2020,1500,302000,hammer,,,2026-04-12,SYNTHETIC sample A,IL,Sep hrs 1040
+Planter,John Deere,DB60,2020,0,171000,hammer,,,2026-08-23,SYNTHETIC sample A,IA,24-row 30in ExactEmerge

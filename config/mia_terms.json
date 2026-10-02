@@ -1,0 +1,21 @@
+{
+  "_README": "Mid-Iowa Auction seller terms used for the consign route. Fields marked verified=false are placeholders: replace with MIA's actual schedule before showing numbers to an operator.",
+  "commission": {
+    "basis": "rate for the hammer bracket applies to the whole hammer price",
+    "tiers": [
+      {"up_to": 25000, "pct": 6.0},
+      {"up_to": 100000, "pct": 5.0},
+      {"up_to": 250000, "pct": 4.0},
+      {"up_to": null, "pct": 3.0}
+    ],
+    "verified": false,
+    "source": "midiowaauctioncompany.com/our-company.htm (search excerpt, 2026-10): 'When your items sell you are charged 3% to 6%. The higher the value, the lower the rate... no fees if the asset doesn't sell.' Bracket breakpoints are NOT published; these are placeholders."
+  },
+  "fee_if_no_sale": 0,
+  "reserve_allowed": true,
+  "seller_paid_advertising": 0,
+  "settlement_days": {"value": 14, "verified": false, "source": "Placeholder. Comparable houses: Purple Wave up to 15 business days, Ritchie Bros within 21 days."},
+  "days_to_next_sale": {"value": 30, "verified": false, "source": "Placeholder: set from MIA's sale calendar."},
+  "seller_prep_cost": {"value": 750, "verified": false, "source": "Placeholder: wash/detail/photos for a large unit."},
+  "seller_transport_cost": {"value": 0, "verified": false, "source": "Online-auction buyers typically arrange pickup; set if MIA requires delivery to a yard."}
+}

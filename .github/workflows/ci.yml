@@ -22,3 +22,9 @@ jobs:
         run: |
           python3 market_snapshot.py
           test -s notebooklm_source.md
+      - name: Trade-In Check smoke run on synthetic sample
+        run: |
+          python3 trade_in_check.py sample
+          test -s sample/trade_in_report.md
+          test -s sample/mia_desk_sheet.md
+          python3 -m tradein.backtest sample

@@ -7,3 +7,7 @@ __pycache__/
 .venv/
 venv/
 .pytest_cache/
+
+# Generated Trade-In Check outputs — regenerate with `python3 trade_in_check.py FOLDER`
+trade_in_report.md
+mia_desk_sheet.md
