@@ -1,0 +1,10 @@
+{
+  "name": "CLIENT BUSINESS NAME",
+  "report_name": "Gavel Report",
+  "decision_line": "You hold the gavel. {name} suggests; you decide.",
+  "rejected_words": [],
+  "min_days_for_call": 7,
+  "min_reach_for_call": 1000,
+  "weak_watch_seconds": 3.0,
+  "price_zone": 0.10
+}

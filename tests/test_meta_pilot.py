@@ -215,3 +215,38 @@ class TestReport:
         ])
         assert code == 2
         assert "https://" in capsys.readouterr().err
+
+
+class TestBrand:
+    def test_his_brand_file_matches_built_in_default(self):
+        assert mp.load_brand(ROOT / "brands" / "his.json") == mp.HIS_BRAND
+
+    def test_client_brand_renders_everywhere(self, units, tmp_path):
+        brand = mp.Brand(name="Prairie Fleet Co", report_name="Demand Report",
+                         decision_line="Your call. {name} advises.",
+                         rejected_words=("cheap",), price_zone=0.05)
+        unit = next(u for u in units if u.stock == "SN2001")
+        page = mp.render_unit_page(unit, "1", "https://u", "", "", brand)
+        report = mp.render_report(unit, _metrics(), AS_OF, brand)
+        assert "Prairie Fleet Co" in page and "Heartland" not in page
+        assert "Demand Report" in report and "Your call. Prairie Fleet Co advises." in report
+        assert "Heartland" not in report and "Gavel" not in report
+
+    def test_client_thresholds_drive_the_recommendation(self):
+        strict = mp.Brand(price_zone=0.01)
+        unit = _unit(price=103_000.0)
+        assert mp.recommend(unit, _metrics(), AS_OF)[0] == "Widen the audience"
+        assert mp.recommend(unit, _metrics(), AS_OF, strict)[0] == "Step down the ladder"
+
+    def test_client_rejected_words_replace_his_list(self):
+        brand = mp.Brand(rejected_words=("cheap",))
+        assert mp.epiphany_hits("cheap auction iron", brand.rejected_words) == ["cheap"]
+
+    def test_unknown_brand_key_fails_loud(self, tmp_path):
+        path = tmp_path / "b.json"
+        path.write_text('{"name": "X", "colour": "red"}')
+        with pytest.raises(mp.InputError, match="colour"):
+            mp.load_brand(path)
+
+    def test_template_loads(self):
+        assert mp.load_brand(ROOT / "brands" / "client_template.json").rejected_words == ()

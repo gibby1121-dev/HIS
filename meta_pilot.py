@@ -1,9 +1,12 @@
 #!/usr/bin/env python3
 """
-HIS Meta pilot: unit pages, Meta catalog feed, and Gavel Reports
-=================================================================
+Meta seller-platform pilot: unit pages, Meta catalog feed, and Gavel Reports
+=============================================================================
 
-Phase 1 of the HIS seller platform. Every pilot unit gets three things:
+Phase 1 of the HIS seller platform, built so it can be resold: everything that
+differs between clients (name, report name, rejected words, thresholds) lives
+in a brand file passed with ``--brand``. HIS is the default client. Every
+pilot unit gets three things:
 
 1. **A unit landing page** (``pages``). This is a static HTML page on an
    HIS-owned domain, carrying the Meta Pixel. Opening the page fires
@@ -70,9 +73,8 @@ except ImportError:  # pragma: no cover - environment guard
     raise SystemExit(2)
 
 
-BRAND = "Heartland Iron Solutions"
-
-#: Rejected vocabulary under the Epiphany Standard (Vault doctrine, 2026-07-03).
+#: HIS's rejected vocabulary under the Epiphany Standard (Vault doctrine,
+#: 2026-07-03). Other clients set their own list in their brand file.
 REJECTED_WORDS = (
     "salesman", "salesmen", "auction", "auctions", "auctioneer", "auctioneers",
     "consignor", "consignors", "consignment", "consignments",
@@ -133,6 +135,44 @@ MIN_REACH_FOR_CALL = 1_000     # under this, too few people have seen the unit
 WEAK_WATCH_SECONDS = 3.0       # the MIA reels problem: drop-off inside 3 s
 PRICE_ZONE = 0.10              # Gavel: within 10% of market is "in the zone"
 
+
+
+@dataclass(frozen=True)
+class Brand:
+    """Everything that differs between clients of the platform.
+
+    HIS is the default. A reseller client gets a JSON brand file (see
+    ``brands/his.json``) and passes it with ``--brand``.
+    """
+    name: str = "Heartland Iron Solutions"
+    report_name: str = "Gavel Report"
+    decision_line: str = "You hold the gavel. {name} suggests; you decide."
+    rejected_words: tuple[str, ...] = REJECTED_WORDS
+    min_days_for_call: int = MIN_DAYS_FOR_CALL
+    min_reach_for_call: int = MIN_REACH_FOR_CALL
+    weak_watch_seconds: float = WEAK_WATCH_SECONDS
+    price_zone: float = PRICE_ZONE
+
+
+HIS_BRAND = Brand()
+
+
+def load_brand(path: Path | None) -> Brand:
+    """Brand from a JSON file; unknown keys fail loud so typos are caught."""
+    if path is None:
+        return HIS_BRAND
+    data = json.loads(Path(path).read_text(encoding="utf-8"))
+    allowed = set(Brand.__dataclass_fields__)
+    unknown = sorted(set(data) - allowed)
+    if unknown:
+        raise InputError(f"{path} has unknown brand key(s) {unknown}. Allowed: {sorted(allowed)}.")
+    if not str(data.get("name", "x")).strip():
+        raise InputError(f"{path}: brand name cannot be blank.")
+    if "rejected_words" in data:
+        data["rejected_words"] = tuple(str(w).lower() for w in data["rejected_words"])
+    return Brand(**data)
+
+
 PHOTO_PATTERN = re.compile(r"^(?:lot)?0*([a-z0-9-]+?)_(\d+)\.(jpe?g|png)$", re.I)
 MAX_PHOTOS = 20
 
@@ -192,10 +232,10 @@ def script_safe(text: str) -> str:
     return text.replace("</", "<\\/")
 
 
-def epiphany_hits(text: str) -> list[str]:
+def epiphany_hits(text: str, words: tuple[str, ...] = REJECTED_WORDS) -> list[str]:
     """Rejected words found in ``text``, lower-cased, in order of appearance."""
     found = re.findall(r"[A-Za-z]+", text.lower())
-    return [w for w in found if w in REJECTED_WORDS]
+    return [w for w in found if w in words]
 
 
 def resolve_columns(
@@ -372,7 +412,7 @@ def event_params(unit: Unit) -> str:
     return script_safe(json.dumps(params))
 
 
-def json_ld(unit: Unit, base_url: str) -> str:
+def json_ld(unit: Unit, base_url: str, brand_name: str = HIS_BRAND.name) -> str:
     """schema.org IndividualProduct (carries serialNumber) with an Offer."""
     data: dict = {
         "@context": "https://schema.org",
@@ -391,7 +431,7 @@ def json_ld(unit: Unit, base_url: str) -> str:
         data["offers"] = {"@type": "Offer", "price": f"{unit.price:.2f}",
                           "priceCurrency": "USD",
                           "availability": "https://schema.org/InStock",
-                          "seller": {"@type": "Organization", "name": BRAND}}
+                          "seller": {"@type": "Organization", "name": brand_name}}
     return script_safe(json.dumps(
         {k: v for k, v in data.items() if v not in (None, [])}, indent=2))
 
@@ -408,7 +448,7 @@ def spec_rows(unit: Unit) -> list[tuple[str, str]]:
 
 
 def render_unit_page(unit: Unit, pixel_id: str, base_url: str, phone: str,
-                     messenger_url: str) -> str:
+                     messenger_url: str, brand: Brand = HIS_BRAND) -> str:
     e = html.escape
     params = event_params(unit)
     gallery = "\n".join(
@@ -425,14 +465,14 @@ def render_unit_page(unit: Unit, pixel_id: str, base_url: str, phone: str,
     return f"""<!doctype html>
 <html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>{e(unit.title)} | {BRAND}</title>
+<title>{e(unit.title)} | {e(brand.name)}</title>
 <meta property="og:title" content="{e(unit.title)}">
 <meta property="og:type" content="product">
 <meta property="og:url" content="{e(base_url)}/{unit.unit_id}/">
 <meta property="og:image" content="{e(base_url)}/{unit.unit_id}/photo-1{unit.photos[0].suffix.lower()}">
 <meta property="product:retailer_item_id" content="{unit.unit_id}">
 <script type="application/ld+json">
-{json_ld(unit, base_url)}
+{json_ld(unit, base_url, brand.name)}
 </script>
 {PIXEL_BASE.format(pixel_id=json.dumps(str(pixel_id)), event_params=params)}
 <noscript><img height="1" width="1" style="display:none" alt=""
@@ -449,7 +489,7 @@ background:#fff;color:#1d1d1b;font:inherit;text-decoration:none;cursor:pointer}}
 .price{{font-size:1.6em;font-weight:700}}
 </style></head>
 <body><main>
-<p>{BRAND}</p>
+<p>{e(brand.name)}</p>
 <h1>{e(unit.title)}</h1>
 <p class="price">{e(price)}</p>
 <div class="actions">{''.join(buttons)}</div>
@@ -463,7 +503,8 @@ background:#fff;color:#1d1d1b;font:inherit;text-decoration:none;cursor:pointer}}
 
 
 def build_pages(units: list[Unit], out: Path, pixel_id: str, base_url: str,
-                phone: str = "", messenger_url: str = "") -> dict[str, list[str]]:
+                phone: str = "", messenger_url: str = "",
+                brand: Brand = HIS_BRAND) -> dict[str, list[str]]:
     """Write one folder per unit. Returns built ids, skips, and copy warnings."""
     result: dict[str, list[str]] = {"built": [], "skipped": [], "warnings": []}
     out.mkdir(parents=True, exist_ok=True)
@@ -471,7 +512,7 @@ def build_pages(units: list[Unit], out: Path, pixel_id: str, base_url: str,
         if not unit.photos:
             result["skipped"].append(f"{unit.stock}: no crew photos in the intake folder")
             continue
-        hits = epiphany_hits(unit.description)
+        hits = epiphany_hits(unit.description, brand.rejected_words)
         if hits:
             result["warnings"].append(
                 f"{unit.stock}: description uses rejected word(s) {sorted(set(hits))}; "
@@ -481,7 +522,7 @@ def build_pages(units: list[Unit], out: Path, pixel_id: str, base_url: str,
         for i, photo in enumerate(unit.photos):
             shutil.copyfile(photo, folder / f"photo-{i + 1}{photo.suffix.lower()}")
         (folder / "index.html").write_text(
-            render_unit_page(unit, pixel_id, base_url, phone, messenger_url),
+            render_unit_page(unit, pixel_id, base_url, phone, messenger_url, brand),
             encoding="utf-8")
         result["built"].append(unit.unit_id)
     return result
@@ -597,14 +638,14 @@ def unit_metrics(ads: pd.DataFrame, unit: Unit) -> dict | None:
     return metrics
 
 
-def price_position(unit: Unit) -> tuple[str, float | None]:
-    """Asking price against HIS's market value: (label, ratio)."""
+def price_position(unit: Unit, zone: float = PRICE_ZONE) -> tuple[str, float | None]:
+    """Asking price against the market value on the pilot sheet: (label, ratio)."""
     if unit.price is None or not unit.market_value:
         return "unknown (asking price or market value not set)", None
     ratio = unit.price / unit.market_value
-    if ratio > 1 + PRICE_ZONE:
+    if ratio > 1 + zone:
         return f"above the zone ({ratio - 1:+.1%} vs market)", ratio
-    if ratio < 1 - PRICE_ZONE:
+    if ratio < 1 - zone:
         return f"below the zone ({ratio - 1:+.1%} vs market)", ratio
     return f"in the zone ({ratio - 1:+.1%} vs market)", ratio
 
@@ -616,7 +657,8 @@ def next_ladder_step(unit: Unit) -> float | None:
     return max(lower) if lower else None
 
 
-def recommend(unit: Unit, metrics: dict | None, as_of: date) -> tuple[str, str]:
+def recommend(unit: Unit, metrics: dict | None, as_of: date,
+              brand: Brand = HIS_BRAND) -> tuple[str, str]:
     """(move, reason). Suggestions only: the seller holds the gavel."""
     days = (as_of - unit.start_date).days
     if metrics is None:
@@ -627,19 +669,19 @@ def recommend(unit: Unit, metrics: dict | None, as_of: date) -> tuple[str, str]:
         return "Hold and work the conversations", (
             f"{metrics['inquiries']:.0f} buyer inquiries came in. Demand is talking; "
             "answer every one before touching price.")
-    if days < MIN_DAYS_FOR_CALL or (metrics["reach"] or 0) < MIN_REACH_FOR_CALL:
+    if days < brand.min_days_for_call or (metrics["reach"] or 0) < brand.min_reach_for_call:
         return "Hold: too early to call", (
             f"{days} days live and {metrics['reach'] or 0:,.0f} people reached. "
-            f"Give it at least {MIN_DAYS_FOR_CALL} days and "
-            f"{MIN_REACH_FOR_CALL:,} people before reading the signal.")
+            f"Give it at least {brand.min_days_for_call} days and "
+            f"{brand.min_reach_for_call:,} people before reading the signal.")
     watch = metrics["avg_watch"]
-    if watch is not None and watch < WEAK_WATCH_SECONDS:
+    if watch is not None and watch < brand.weak_watch_seconds:
         return "Reposition the creative", (
             f"People watch {watch:.1f} s on average, so they leave before seeing "
             "the machine. Reshoot the walkaround with the best shot in the first "
             "second. This is a creative problem, not a price problem.")
-    label, ratio = price_position(unit)
-    if ratio is not None and ratio > 1 + PRICE_ZONE:
+    label, ratio = price_position(unit, brand.price_zone)
+    if ratio is not None and ratio > 1 + brand.price_zone:
         step = next_ladder_step(unit)
         target = (f" Your committed next step is {money(step)}." if step
                   else " No lower ladder step is set; agree one before moving.")
@@ -658,10 +700,11 @@ def recommend(unit: Unit, metrics: dict | None, as_of: date) -> tuple[str, str]:
         "Test a wider radius or a second audience before moving the price.")
 
 
-def render_report(unit: Unit, metrics: dict | None, as_of: date) -> str:
+def render_report(unit: Unit, metrics: dict | None, as_of: date,
+                  brand: Brand = HIS_BRAND) -> str:
     e = html.escape
-    move, reason = recommend(unit, metrics, as_of)
-    label, _ = price_position(unit)
+    move, reason = recommend(unit, metrics, as_of, brand)
+    label, _ = price_position(unit, brand.price_zone)
     m = metrics or {}
 
     def num(key: str, fmt: str = "{:,.0f}") -> str:
@@ -690,7 +733,7 @@ def render_report(unit: Unit, metrics: dict | None, as_of: date) -> str:
 <html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex">
-<title>Gavel Report: {e(unit.title)}</title>
+<title>{e(brand.report_name)}: {e(unit.title)}</title>
 <style>
 body{{font-family:system-ui,sans-serif;margin:0;color:#1d1d1b;background:#fff}}
 main{{max-width:760px;margin:0 auto;padding:16px}}
@@ -699,7 +742,7 @@ table{{border-collapse:collapse;width:100%}}th,td{{text-align:left;padding:6px;b
 .move strong{{font-size:1.3em}}
 </style></head>
 <body><main>
-<p>{BRAND} | Gavel Report | as of {as_of.isoformat()}</p>
+<p>{e(brand.name)} | {e(brand.report_name)} | as of {as_of.isoformat()}</p>
 <h1>{e(unit.title)}</h1>
 <p>Prepared for {e(unit.seller_name)}. Live since {unit.start_date.isoformat()}
 ({(as_of - unit.start_date).days} days).</p>
@@ -712,21 +755,21 @@ Your price is {e(label)}.</p>
 {f'<h3>Where the attention is coming from</h3><ul>{regions}</ul>' if regions else ''}
 <div class="move"><p>Suggested move</p><strong>{e(move)}</strong><p>{e(reason)}</p></div>
 <h2>Your call</h2>
-<p>You hold the gavel. HIS suggests; you decide.</p>
+<p>{e(brand.decision_line.replace("{name}", brand.name))}</p>
 <p>Decision on record: {decision}</p>
 </main></body></html>
 """
 
 
 def build_reports(units: list[Unit], ads: pd.DataFrame, out: Path,
-                  as_of: date) -> list[tuple[str, str]]:
+                  as_of: date, brand: Brand = HIS_BRAND) -> list[tuple[str, str]]:
     out.mkdir(parents=True, exist_ok=True)
     summary = []
     for unit in units:
         metrics = unit_metrics(ads, unit)
-        move, _ = recommend(unit, metrics, as_of)
+        move, _ = recommend(unit, metrics, as_of, brand)
         (out / f"{unit.unit_id}.html").write_text(
-            render_report(unit, metrics, as_of), encoding="utf-8")
+            render_report(unit, metrics, as_of, brand), encoding="utf-8")
         summary.append((unit.stock, move))
     return summary
 
@@ -737,17 +780,19 @@ def build_reports(units: list[Unit], ads: pd.DataFrame, out: Path,
 
 def _base_url(value: str) -> str:
     if not value.startswith("https://"):
-        raise InputError("--base-url must be an https:// address on an HIS-owned domain.")
+        raise InputError("--base-url must be an https:// address on a domain the client owns.")
     return value.rstrip("/")
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description="HIS Meta pilot tooling.")
+    parser = argparse.ArgumentParser(description="Meta seller-platform pilot tooling (default client: HIS).")
     sub = parser.add_subparsers(dest="command", required=True)
 
     def common(p: argparse.ArgumentParser) -> None:
         p.add_argument("--inventory", type=Path, required=True, help="Sandhills ExportInventory CSV")
         p.add_argument("--pilot", type=Path, required=True, help="pilot units sheet (CSV)")
+        p.add_argument("--brand", type=Path, default=None,
+                       help="client brand file (JSON); default is HIS")
 
     p_pages = sub.add_parser("pages", help="build unit landing pages with the Meta Pixel")
     common(p_pages)
@@ -772,6 +817,7 @@ def main(argv: list[str] | None = None) -> int:
 
     args = parser.parse_args(argv)
     try:
+        brand = load_brand(args.brand)
         inv = load_inventory(args.inventory)
         pilot = load_pilot(args.pilot)
         photos = index_photos(getattr(args, "photos", None))
@@ -779,7 +825,7 @@ def main(argv: list[str] | None = None) -> int:
 
         if args.command == "pages":
             result = build_pages(units, args.out, args.pixel_id, _base_url(args.base_url),
-                                 args.phone, args.messenger_url)
+                                 args.phone, args.messenger_url, brand)
             print(f"Built {len(result['built'])} unit page(s) in {args.out}/")
             for line in result["skipped"]:
                 print(f"  SKIPPED  {line}")
@@ -794,19 +840,19 @@ def main(argv: list[str] | None = None) -> int:
             for line in skipped:
                 print(f"  SKIPPED  {line}")
             for row in rows:
-                hits = epiphany_hits(row["description"])
+                hits = epiphany_hits(row["description"], brand.rejected_words)
                 if hits:
                     print(f"  WARNING  {row['id']}: description uses rejected "
                           f"word(s) {sorted(set(hits))}; rewrite before upload")
             return 0
 
         as_of = date.fromisoformat(args.as_of) if args.as_of else date.today()
-        summary = build_reports(units, load_ads(args.ads), args.out, as_of)
-        print(f"Wrote {len(summary)} Gavel Report(s) to {args.out}/")
+        summary = build_reports(units, load_ads(args.ads), args.out, as_of, brand)
+        print(f"Wrote {len(summary)} {brand.report_name}(s) to {args.out}/")
         for stock, move in summary:
             print(f"  {stock}: {move}")
         return 0
-    except (InputError, FileNotFoundError) as exc:
+    except (InputError, FileNotFoundError, json.JSONDecodeError) as exc:
         sys.stderr.write(f"ERROR: {exc}\n")
         return 2
 

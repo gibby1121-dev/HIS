@@ -17,6 +17,31 @@ pilot unit gets:
 makes a pricing decision from their Gavel Report *and* one owner inquiry comes
 in through HIS's Meta surfaces.
 
+## Running it for another client (white-label)
+
+The tool is built to be resold to other dealerships and equipment businesses.
+Nothing HIS-specific is hard-coded. Everything that differs between clients
+lives in a **brand file**:
+
+| Key | What it controls |
+|---|---|
+| `name` | Business name on pages, reports, and schema markup |
+| `report_name` | What the seller report is called (HIS: "Gavel Report") |
+| `decision_line` | The closing line on the report; `{name}` is replaced with the business name |
+| `rejected_words` | Words flagged in descriptions (HIS: the Epiphany Standard list; can be empty) |
+| `min_days_for_call`, `min_reach_for_call`, `weak_watch_seconds`, `price_zone` | Recommendation thresholds |
+
+To set up a new client:
+
+1. Copy `brands/client_template.json` and fill in the values.
+2. Pass the file with `--brand brands/<client>.json` on every command.
+
+HIS is the default (`brands/his.json`). Unknown keys stop the run, so typos
+are caught.
+
+Each client runs on **their own** Meta business portfolio, Pixel, catalog,
+domain, and ad account. Never put a client's units in HIS's Meta assets.
+
 ## House rules (enforced by the tool)
 
 - **Crew photos only.** Photos come from the intake folder, never from
