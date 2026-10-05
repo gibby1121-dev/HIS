@@ -1,6 +1,11 @@
 # Generated pipeline output — regenerate with `python3 market_snapshot.py`
 notebooklm_source.md
 
+# Generated Meta pilot output — regenerate with `python3 meta_pilot.py`
+site/
+meta_catalog.csv
+gavel_reports/
+
 # Python
 __pycache__/
 *.py[cod]

@@ -1,0 +1,3 @@
+StockNumber,seller_name,start_date,market_value,ladder,decision,decision_date
+SN2001,SYNTHETIC Seller A,2026-09-01,262000,289000;279000;269000,,
+SN2002,SYNTHETIC Seller B,2026-09-20,200000,198000;189000,,
