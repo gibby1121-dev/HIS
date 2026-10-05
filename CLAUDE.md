@@ -1,9 +1,30 @@
 # CLAUDE.md — HIS (Heartland Iron Solutions)
 
+## Who HIS is (read before framing any work)
+
+**Heartland Iron Solutions (HIS) is an AI agency that specializes in heavy
+equipment as its initial vertical.** It is **not** an auction company, not an
+equipment marketing shop with AI tooling, and not a consulting practice. HIS
+sells intelligence, matchmaking, and valuation; its moat is agent-and-process
+IP.
+
+- **Mid-Iowa Auction Co. (MIA)** is a separate business: Matt Paglia's
+  auction house, which is HIS's day-one channel and proving ground. MIA stays
+  on Sandhills as its system of record. Do not merge the two.
+- HIS segments: **HIS Advantage** (valuation and advisory), **HIS Auction
+  Service** (the MIA operations pillar), and **Gavel** (price discovery,
+  adjacent).
+- Positioning follows the **Epiphany Standard**. HIS-branded copy never uses
+  *auction/auctioneer*, *consignor/consignment*, or *salesman*. Show the work
+  and let the iron be the subject.
+- Canonical source: the Drive Vault brief
+  `HIS_Identity_Brief_and_Facebook_Strategy_v0.1.md`, which rests on
+  `HIS_AIAgency_Vision_v0`. Doctrine changes go through Jane via the Hallway.
+
 ## What this repository is
 
-Equipment-market tooling for the Heartland Iron Solutions / Mid-Iowa auction
-business. The core deliverable is the **Sandhills Market Snapshot pipeline**
+Equipment-market tooling for HIS. Much of it runs on data from MIA's
+Sandhills account. The core deliverable is the **Sandhills Market Snapshot pipeline**
 (`market_snapshot.py`): it merges lot inventory with Sandhills WebStats
 traffic, computes a Buyer Engagement Score, overlays regional market trends,
 and renders a NotebookLM-ready Markdown document.

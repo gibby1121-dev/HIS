@@ -1,7 +1,10 @@
 # HIS — Heartland Iron Solutions
 
-Equipment-market tooling for the Heartland Iron Solutions / Mid-Iowa auction
-business.
+Equipment-market tooling for **Heartland Iron Solutions (HIS)**, an AI agency
+that specializes in heavy equipment as its initial vertical. HIS is not an
+auction company. Mid-Iowa Auction Co. (MIA) is a separate business: HIS's
+day-one channel and the source of the Sandhills data these tools run on. See
+[`CLAUDE.md`](CLAUDE.md) for the full framing.
 
 The core deliverable is the **Sandhills Market Snapshot pipeline** — see
 [`MARKET_SNAPSHOT_README.md`](MARKET_SNAPSHOT_README.md) for what it does and
