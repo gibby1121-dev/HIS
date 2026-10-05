@@ -49,6 +49,7 @@ committing it here.
 pip install -r requirements.txt
 python3 market_snapshot.py            # uses CSVs in the current directory
 ./run_market_snapshot.sh              # one-shot runner with env checks
+python3 meta_pilot.py --help          # Meta pilot: unit pages, catalog, Gavel Reports
 pytest                                # unit tests
 ```
 

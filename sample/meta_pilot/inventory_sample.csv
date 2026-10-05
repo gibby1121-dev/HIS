@@ -1,0 +1,4 @@
+StockNumber,Year,Manufacturer,Model,SaleListPrice,Category,Description,hours,mileage,LocationCity,LocationState,VINSerialNumber
+SN2001,2019,John Deere,8R 340,289000,Tractors - 300 HP or Greater,"One owner, shedded. Known issue: left rear wheel weight bracket welded.",2150,,Marshalltown,IA,1RW8340RCKD012345
+SN2002,2017,Case IH,8240,198000,Combines,Rotor and concave replaced 2024. Consignment from local farm.,1890,,Ames,IA,YGG123456
+SN2003,2020,Kenworth,T880,,Trucks,Day cab. Clean title.,,412000,Adel,IA,1NKZX4TX0LJ123456

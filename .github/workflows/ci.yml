@@ -22,3 +22,10 @@ jobs:
         run: |
           python3 market_snapshot.py
           test -s notebooklm_source.md
+      - name: Meta pilot smoke run on sample data
+        run: |
+          python3 meta_pilot.py report --inventory sample/meta_pilot/inventory_sample.csv \
+            --pilot sample/meta_pilot/pilot_units_sample.csv \
+            --ads sample/meta_pilot/ads_export_sample.csv \
+            --as-of 2026-10-05 --out gavel_reports
+          test -s gavel_reports/SN2001.html
