@@ -147,6 +147,10 @@ class Brand:
     name: str = "Heartland Iron Solutions"
     report_name: str = "Gavel Report"
     decision_line: str = "You hold the gavel. {name} suggests; you decide."
+    # Equipment Appraisal Doctrine (HIS, 2026-05-14): required on anything that
+    # shows a market value outside the company. Never call it an appraisal.
+    disclaimer: str = ("This market assessment is for pricing guidance and is "
+                       "not a professional appraisal.")
     rejected_words: tuple[str, ...] = REJECTED_WORDS
     min_days_for_call: int = MIN_DAYS_FOR_CALL
     min_reach_for_call: int = MIN_REACH_FOR_CALL
@@ -757,6 +761,7 @@ Your price is {e(label)}.</p>
 <h2>Your call</h2>
 <p>{e(brand.decision_line.replace("{name}", brand.name))}</p>
 <p>Decision on record: {decision}</p>
+{f'<p><small>{e(brand.disclaimer)}</small></p>' if brand.disclaimer else ''}
 </main></body></html>
 """
 

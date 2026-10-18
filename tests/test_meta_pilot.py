@@ -250,3 +250,11 @@ class TestBrand:
 
     def test_template_loads(self):
         assert mp.load_brand(ROOT / "brands" / "client_template.json").rejected_words == ()
+
+
+def test_report_carries_appraisal_disclaimer():
+    unit = _unit()
+    report = mp.render_report(unit, _metrics(), AS_OF)
+    assert "not a professional appraisal" in report
+    quiet = mp.Brand(disclaimer="")
+    assert "appraisal" not in mp.render_report(unit, _metrics(), AS_OF, quiet)

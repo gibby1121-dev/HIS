@@ -2,6 +2,7 @@
   "name": "Heartland Iron Solutions",
   "report_name": "Gavel Report",
   "decision_line": "You hold the gavel. {name} suggests; you decide.",
+  "disclaimer": "This market assessment is for pricing guidance and is not a professional appraisal.",
   "rejected_words": ["salesman", "salesmen", "auction", "auctions", "auctioneer",
                      "auctioneers", "consignor", "consignors", "consignment",
                      "consignments"],

@@ -28,6 +28,7 @@ lives in a **brand file**:
 | `name` | Business name on pages, reports, and schema markup |
 | `report_name` | What the seller report is called (HIS: "Gavel Report") |
 | `decision_line` | The closing line on the report; `{name}` is replaced with the business name |
+| `disclaimer` | Footer on every report. Required by HIS's Equipment Appraisal Doctrine whenever a market value is shown; the default says it is pricing guidance, not a professional appraisal. Never describe the number as an appraisal |
 | `rejected_words` | Words flagged in descriptions (HIS: the Epiphany Standard list; can be empty) |
 | `min_days_for_call`, `min_reach_for_call`, `weak_watch_seconds`, `price_zone` | Recommendation thresholds |
 
